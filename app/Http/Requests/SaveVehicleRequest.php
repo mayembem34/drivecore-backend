@@ -12,6 +12,13 @@ class SaveVehicleRequest extends FormRequest
         return $this->user() !== null;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('registration'))) {
+            $this->merge(['registration' => mb_strtoupper($this->input('registration'))]);
+        }
+    }
+
     public function rules(): array
     {
         $rules = ['registration' => ['required', 'string', 'max:40'], 'make' => ['required', 'string', 'max:100'], 'model' => ['required', 'string', 'max:100'], 'year' => ['nullable', 'integer', 'between:1900,2100'], 'odometer' => ['sometimes', 'integer', 'min:0'], 'status' => ['sometimes', Rule::in(['available', 'maintenance', 'damaged'])]];

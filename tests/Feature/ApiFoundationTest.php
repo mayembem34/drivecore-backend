@@ -262,4 +262,17 @@ class ApiFoundationTest extends TestCase
         Cache::put('drivecore:queue-heartbeat', now()->timestamp, 900);
         $this->artisan('drivecore:check --workers')->assertSuccessful();
     }
+
+    public function test_malformed_login_payload_returns_validation_error_instead_of_server_error(): void
+    {
+        $this->postJson('/api/v1/auth/tokens', ['email' => ['unexpected'], 'password' => 'test', 'device_name' => 'test'])->assertUnprocessable()->assertJsonValidationErrors('email');
+    }
+
+    public function test_vehicle_registration_is_normalized_and_duplicate_is_rejected(): void
+    {
+        [$user, $company, $branch] = $this->account();
+        $payload = ['company_id' => $company->id, 'branch_id' => $branch->id, 'registration' => 'abc-123', 'make' => 'Toyota', 'model' => 'Corolla'];
+        $this->postJson('/api/v1/vehicles', $payload)->assertCreated()->assertJsonPath('data.registration', 'ABC-123')->assertJsonPath('data.status', 'available');
+        $this->postJson('/api/v1/vehicles', [...$payload, 'registration' => 'ABC-123'])->assertUnprocessable()->assertJsonValidationErrors('registration');
+    }
 }
