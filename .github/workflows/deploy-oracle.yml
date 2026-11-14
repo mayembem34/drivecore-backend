@@ -8,6 +8,11 @@ on:
         type: boolean
         default: false
 
+      enable_domain:
+        description: 'Configure api.drivecore.innovize-tech.com (DNS A record must already point to the VM)'
+        type: boolean
+        default: false
+
 permissions:
   contents: read
 
@@ -28,6 +33,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Verify domain DNS
+        if: inputs.enable_domain
+        run: |
+          python3 - <<'PY'
+          import socket
+          addresses = {item[4][0] for item in socket.getaddrinfo('api.drivecore.innovize-tech.com', 443, type=socket.SOCK_STREAM)}
+          assert addresses == {'158.180.34.27'}, 'Domain must resolve only to 158.180.34.27 before enabling domain HTTPS.'
+          PY
 
       - name: Configure SSH
         env:
@@ -72,6 +86,15 @@ jobs:
       - name: Check public HTTPS endpoint
         if: inputs.enable_https
         run: curl --fail --silent --show-error --retry 5 --retry-all-errors --max-time 15 https://158.180.34.27/up > /dev/null
+
+      - name: Enable domain HTTPS
+        if: inputs.enable_domain
+        run: ssh -n drivecore bash /opt/drivecore/backend/deploy/enable-domain.sh
+
+      - name: Check domain API over HTTPS
+        if: inputs.enable_domain
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --max-time 15 https://api.drivecore.innovize-tech.com/api/v1/health | python3 -c 'import json,sys; assert json.load(sys.stdin)["data"]["status"] == "up"'
 
       - name: Check public health endpoint
         run: curl --fail --silent --show-error --retry 5 --retry-all-errors --max-time 15 http://158.180.34.27/up > /dev/null
