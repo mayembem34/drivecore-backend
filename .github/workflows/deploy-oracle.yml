@@ -1,0 +1,108 @@
+name: Deploy Oracle development server
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: drivecore-oracle-development
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY"
+          test -n "$KNOWN_HOSTS"
+          install -m 700 -d ~/.ssh
+          umask 077
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/drivecore_actions
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<'SSH'
+          Host drivecore
+            HostName 158.180.34.27
+            User ubuntu
+            IdentityFile ~/.ssh/drivecore_actions
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+            ConnectTimeout 20
+          SSH
+
+      - name: Transfer selected commit
+        run: |
+          set -euo pipefail
+          git bundle create /tmp/drivecore.bundle HEAD
+          ssh drivecore "install -d -m 700 /home/ubuntu/drivecore-deploy/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          scp /tmp/drivecore.bundle "drivecore:/home/ubuntu/drivecore-deploy/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/source.bundle"
+
+      - name: Back up and deploy
+        run: |
+          set -euo pipefail
+          ssh drivecore bash -s -- "$GITHUB_SHA" "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" <<'REMOTE'
+          set -euo pipefail
+          revision="$1"
+          run_id="$2"
+          cd /opt/drivecore/backend
+          exec 9>/home/ubuntu/drivecore-deploy/deploy.lock
+          flock -n 9
+          test -z "$(git status --porcelain)"
+          test "$(git branch --show-current)" = main
+          git fetch "/home/ubuntu/drivecore-deploy/$run_id/source.bundle" HEAD
+          test "$(git rev-parse FETCH_HEAD)" = "$revision"
+          git merge-base --is-ancestor HEAD "$revision"
+          test -f .env
+          test -f /opt/drivecore/infrastructure/.env
+          sudo -n docker info >/dev/null
+          compose() {
+            sudo -n docker compose --project-directory /opt/drivecore/infrastructure "$@"
+          }
+          compose exec -T app php artisan down --retry=60 --no-interaction
+          compose stop worker scheduler
+          umask 077
+          install -d -m 700 /opt/drivecore/backups
+          compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc'             > "/opt/drivecore/backups/before-$run_id.dump"
+          test -s "/opt/drivecore/backups/before-$run_id.dump"
+          git merge --ff-only "$revision"
+          cp deploy/compose.yaml /opt/drivecore/infrastructure/compose.yaml
+          sed 's|..:/var/www/html|../backend:/var/www/html|g' deploy/compose.override.yaml             > /opt/drivecore/infrastructure/compose.override.yaml
+          cp deploy/nginx/default.conf /opt/drivecore/infrastructure/nginx/default.conf
+          cp deploy/php/Dockerfile /opt/drivecore/infrastructure/php/Dockerfile
+          compose config --quiet
+          sudo -n docker build -t drivecore-php:8.4 /opt/drivecore/infrastructure/php
+          sudo -n docker run --rm --user "$(id -u):$(id -g)"             -e COMPOSER_HOME=/tmp/composer             -v /opt/drivecore/backend:/var/www/html             drivecore-php:8.4 composer install --no-interaction --prefer-dist --optimize-autoloader
+          compose up -d --force-recreate app
+          compose exec -T app php artisan config:clear --no-interaction
+          compose exec -T app php artisan migrate --force --no-interaction
+          compose exec -T app php artisan config:cache --no-interaction
+          compose exec -T app php artisan up --no-interaction
+          compose up -d --force-recreate nginx worker scheduler
+          compose exec -T nginx nginx -t
+          curl --fail --silent --show-error --retry 10 --retry-delay 3             --retry-all-errors --max-time 10 http://127.0.0.1/up >/dev/null
+          compose ps
+          printf 'Deployed commit %s\n' "$revision"
+          rm -f "/home/ubuntu/drivecore-deploy/$run_id/source.bundle"
+          rmdir "/home/ubuntu/drivecore-deploy/$run_id"
+          REMOTE
+
+      - name: Check public health endpoint
+        run: curl --fail --silent --show-error --retry 5 --retry-all-errors --max-time 15 http://158.180.34.27/up > /dev/null
+
+      - name: Remove runner credentials
+        if: always()
+        run: rm -f ~/.ssh/drivecore_actions
