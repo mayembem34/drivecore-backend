@@ -29,3 +29,8 @@ Thumbs.db
 # Server credentials and environment backups
 /deploy/.env
 /.env.before-server-setup
+
+/deploy/backup.env
+/deploy/letsencrypt/
+/deploy/acme/
+/deploy/nginx/tls/

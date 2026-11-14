@@ -1,0 +1,7 @@
+[Unit]
+Description=Renew DriveCore IP TLS certificate and reload Nginx
+After=docker.service network-online.target
+[Service]
+Type=oneshot
+User=ubuntu
+ExecStart=/bin/bash /opt/drivecore/backend/deploy/renew-tls.sh

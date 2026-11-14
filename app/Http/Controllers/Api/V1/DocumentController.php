@@ -1,0 +1,55 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Actions\RecordAudit;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreDocumentRequest;
+use App\Http\Resources\RecordResource;
+use App\Models\Document;
+use App\Support\CompanyAccess;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class DocumentController extends Controller
+{
+    public function index(Request $request): AnonymousResourceCollection
+    {
+        return RecordResource::collection(CompanyAccess::scope(Document::query(), $request->user())->orderBy('id')->paginate(25));
+    }
+
+    public function store(StoreDocumentRequest $request): RecordResource
+    {
+        $data = $request->validated();
+        CompanyAccess::branch($request->user(), $data['company_id'], $data['branch_id']);
+        $disk = config('filesystems.default');
+        $file = $request->file('file');
+        $path = $file->store('companies/'.$data['company_id'].'/documents', $disk);
+        abort_unless(is_string($path), 503, 'Document storage is unavailable.');
+        try {
+            return DB::transaction(function () use ($request, $data, $disk, $file, $path): RecordResource {
+                $document = Document::create(['company_id' => $data['company_id'], 'branch_id' => $data['branch_id'], 'uploaded_by' => $request->user()->id, 'disk' => $disk, 'path' => $path, 'original_name' => basename($file->getClientOriginalName()), 'mime_type' => $file->getMimeType(), 'size' => $file->getSize()]);
+                RecordAudit::write($request->user(), 'document.uploaded', $document);
+
+                return new RecordResource($document);
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk($disk)->delete($path);
+            throw $exception;
+        }
+    }
+
+    public function show(Request $request, int $document): StreamedResponse
+    {
+        $record = CompanyAccess::record($request->user(), Document::class, $document);
+        Gate::authorize('view', $record);
+
+        return Storage::disk($record->disk)->download($record->path, 'document-'.$record->id.'.'.match ($record->mime_type) {
+            'application/pdf' => 'pdf','image/png' => 'png',default => 'jpg'
+        }, ['Content-Type' => $record->mime_type, 'X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store']);
+    }
+}
