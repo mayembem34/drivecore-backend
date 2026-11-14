@@ -46,4 +46,6 @@ printf 'exit 99\n' | bash "$fixture/run.sh" "$revision" test
 grep -q 'artisan migrate --force' "$MOCK_LOG"
 grep -q 'artisan up --no-interaction' "$MOCK_LOG"
 grep -q 'horizon:status' "$MOCK_LOG"
-printf 'Deployment completed despite a child consuming stdin.\n'
+[ "$(stat -c %a "$fixture/infrastructure/acme")" = 755 ]
+[ "$(stat -c %a "$fixture/infrastructure/acme/.well-known/acme-challenge/drivecore-readiness")" = 644 ]
+printf 'Deployment completed despite a child consuming stdin.\n' 

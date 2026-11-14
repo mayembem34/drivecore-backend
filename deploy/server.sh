@@ -31,6 +31,7 @@ sed 's|..:/var/www/html|../backend:/var/www/html|g' deploy/compose.override.yaml
 cp deploy/nginx/default.conf /opt/drivecore/infrastructure/nginx/default.conf
 cp deploy/php/Dockerfile /opt/drivecore/infrastructure/php/Dockerfile
 mkdir -p /opt/drivecore/infrastructure/nginx/tls /opt/drivecore/infrastructure/acme /opt/drivecore/infrastructure/letsencrypt
+bash deploy/prepare-acme.sh /opt/drivecore/infrastructure
 compose config --quiet
 sudo -n docker build -t drivecore-php:8.4 /opt/drivecore/infrastructure/php
 sudo -n docker run --rm --user "$(id -u):$(id -g)"             -e COMPOSER_HOME=/tmp/composer             -v /opt/drivecore/backend:/var/www/html             drivecore-php:8.4 composer install --no-interaction --prefer-dist --optimize-autoloader
