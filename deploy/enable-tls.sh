@@ -2,7 +2,10 @@
 set -euo pipefail
 cd /opt/drivecore/infrastructure
 umask 077
-mkdir -p letsencrypt acme nginx/tls
+mkdir -p letsencrypt nginx/tls
+bash /opt/drivecore/backend/deploy/prepare-acme.sh
+probe="$(curl --fail --silent --show-error --resolve 158.180.34.27:80:127.0.0.1 http://158.180.34.27/.well-known/acme-challenge/drivecore-readiness)"
+test "$probe" = drivecore-acme-ready
 sudo -n docker run --rm \
  -v "$PWD/letsencrypt:/etc/letsencrypt" \
  -v "$PWD/acme:/var/www/acme" \
