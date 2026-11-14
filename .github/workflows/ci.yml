@@ -47,6 +47,7 @@ jobs:
       - run: cp .env.example .env && php artisan key:generate --no-interaction
       - run: composer audit --locked --no-interaction
       - run: vendor/bin/pint --format agent && git diff --exit-code
+      - run: bash tests/deployment/transport.sh
       - run: php artisan test --compact
       - name: Check real database and Redis
         if: matrix.database == 'pgsql'
