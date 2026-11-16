@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-python3 - <<'PY'
+python3 - "${1:-/opt/drivecore/backend/.env}" <<'PY'
 from pathlib import Path
 import re
-path = Path('/opt/drivecore/backend/.env')
+import sys
+path = Path(sys.argv[1])
 text = path.read_text()
 settings = {
     'SANCTUM_STATEFUL_DOMAINS': ['drivecore.innovize-tech.com', 'api.drivecore.innovize-tech.com'],
