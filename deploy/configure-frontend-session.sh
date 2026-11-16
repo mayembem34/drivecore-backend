@@ -7,8 +7,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 settings = {
-    'SANCTUM_STATEFUL_DOMAINS': ['drivecore.innovize-tech.com', 'api.drivecore.innovize-tech.com'],
-    'CORS_ALLOWED_ORIGINS': ['https://drivecore.innovize-tech.com'],
+    'SANCTUM_STATEFUL_DOMAINS': ['drivecore.innovize-tech.com', 'www.drivecore.innovize-tech.com', 'api.drivecore.innovize-tech.com'],
+    'CORS_ALLOWED_ORIGINS': ['https://drivecore.innovize-tech.com', 'https://www.drivecore.innovize-tech.com'],
 }
 for key, required in settings.items():
     match = re.search(rf'^{key}=(.*)$', text, re.M)
