@@ -36,6 +36,7 @@ compose config --quiet
 sudo -n docker build -t drivecore-php:8.4 /opt/drivecore/infrastructure/php
 sudo -n docker run --rm --user "$(id -u):$(id -g)"             -e COMPOSER_HOME=/tmp/composer             -v /opt/drivecore/backend:/var/www/html             drivecore-php:8.4 composer install --no-interaction --prefer-dist --optimize-autoloader
 compose up -d --force-recreate app
+bash deploy/configure-frontend-session.sh
 compose exec -T app php artisan config:clear --no-interaction
 compose exec -T app php artisan migrate --force --no-interaction
 compose exec -T app php artisan db:seed --class=RolePermissionSeeder --force --no-interaction
