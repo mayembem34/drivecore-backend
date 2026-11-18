@@ -78,7 +78,7 @@ class ApiFoundationTest extends TestCase
         $otherBranch = Branch::create(['company_id' => $company->id, 'name' => 'Other']);
         [$own] = $this->records($company, $branch);
         [$other] = $this->records($company, $otherBranch);
-        $this->getJson('/api/v1/customers')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $own->id);
+        $this->getJson('/api/v1/customers?company_id='.$company->id)->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $own->id);
         $this->getJson('/api/v1/customers/'.$other->id)->assertNotFound();
         $this->patchJson('/api/v1/customers/'.$other->id, ['name' => 'Changed', 'type' => 'individual'])->assertNotFound();
         $this->postJson('/api/v1/customers', ['company_id' => $company->id, 'branch_id' => $otherBranch->id, 'name' => 'New', 'type' => 'individual'])->assertNotFound();
@@ -213,7 +213,7 @@ class ApiFoundationTest extends TestCase
             $user->syncRoles($role);
             foreach ([$branch, $customer, $vehicle] as $record) {
                 $domain = Str::plural(Str::snake(class_basename($record)));
-                $view = $role === 'company-admin' || $role === 'viewer' || ($role === 'operations' && $domain !== 'branches');
+                $view = $role === 'company-admin' || $role === 'viewer' || ($role === 'operations' && $domain !== 'branches') || ($role === 'driver' && $domain === 'branches');
                 $manage = $role === 'company-admin' || ($role === 'operations' && $domain !== 'branches');
                 $this->assertSame($view, $policy->view($user, $record), $role.' '.$domain.' view');
                 $this->assertSame($manage, $policy->update($user, $record), $role.' '.$domain.' manage');

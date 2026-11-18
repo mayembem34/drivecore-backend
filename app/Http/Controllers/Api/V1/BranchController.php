@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\RecordResource;
 use App\Models\Branch;
 use App\Support\CompanyAccess;
+use App\Support\DirectoryQuery;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,7 @@ class BranchController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        return RecordResource::collection(CompanyAccess::scope(Branch::query(), $request->user())->orderBy('id')->paginate(25));
+        return RecordResource::collection(DirectoryQuery::apply($request, CompanyAccess::scope(Branch::query(), $request->user()), ['name'], [], requiredCompany: false)->orderBy('id')->paginate(25)->withQueryString());
     }
 
     public function store(Request $request): RecordResource

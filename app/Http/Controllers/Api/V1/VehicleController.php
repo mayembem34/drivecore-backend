@@ -9,6 +9,7 @@ use App\Http\Resources\RecordResource;
 use App\Models\Reservation;
 use App\Models\Vehicle;
 use App\Support\CompanyAccess;
+use App\Support\DirectoryQuery;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,7 @@ class VehicleController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        return RecordResource::collection(CompanyAccess::scope(Vehicle::query(), $request->user())->orderBy('id')->paginate(25));
+        return RecordResource::collection(DirectoryQuery::apply($request, CompanyAccess::scope(Vehicle::query(), $request->user()), ['registration', 'make', 'model'], ['status' => ['available', 'rented', 'maintenance', 'damaged']])->orderBy('id')->paginate(25)->withQueryString());
     }
 
     public function show(Request $request, int $vehicle): RecordResource
@@ -34,7 +35,7 @@ class VehicleController extends Controller
 
     public function store(SaveVehicleRequest $request): RecordResource
     {
-        $data = $request->validated();
+        $data = $request->safe()->except('odometer_unit');
         CompanyAccess::branch($request->user(), $data['company_id'], $data['branch_id']);
         Validator::make($data, ['registration' => [Rule::unique('vehicles')->where('company_id', $data['company_id'])]])->validate();
 
@@ -51,7 +52,7 @@ class VehicleController extends Controller
         return DB::transaction(function () use ($request, $vehicle): RecordResource {
             $record = CompanyAccess::scope(Vehicle::query(), $request->user())->lockForUpdate()->findOrFail($vehicle);
             Gate::authorize('update', $record);
-            $data = $request->validated();
+            $data = $request->safe()->except('odometer_unit');
             if ($record->status === 'rented') {
                 abort(409, 'A rented vehicle cannot be edited.');
             }
