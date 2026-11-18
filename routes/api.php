@@ -34,6 +34,9 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::patch('vehicles/{vehicle}', [VehicleController::class, 'update'])->middleware('can:vehicles.manage')->name('vehicles.update');
         Route::post('reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->middleware('can:reservations.manage')->name('reservations.cancel');
         Route::post('rentals/{rental}/{action}', [RentalController::class, 'transition'])->whereIn('action', ['handover', 'return'])->middleware('can:rentals.manage')->name('rentals.transition');
+        Route::get('users', [UserController::class, 'index'])->middleware('can:users.view')->name('users.index');
+        Route::get('roles', [UserController::class, 'roles'])->middleware('can:users.view')->name('roles.index');
+        Route::patch('users/{user}', [UserController::class, 'update'])->middleware('can:users.manage')->name('users.update');
         Route::post('users', [UserController::class, 'store'])->middleware('can:users.manage')->name('users.store');
     });
 });

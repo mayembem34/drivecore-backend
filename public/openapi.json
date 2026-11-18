@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "DriveCore Backend API",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Initial operational API. Company/branch permissions are enforced server-side. Roles are an engineering baseline pending client approval. Financial calculations, invoices, credit approval, rental extensions and structured inspection evidence are not implemented by this version."
   },
   "servers": [
@@ -639,7 +639,7 @@
     "/api/v1/companies": {
       "get": {
         "summary": "List accessible companies",
-        "description": "Requires companies.view. Fixed page size: 25. Ordered by ID.",
+        "description": "Requires companies.view. Fixed page size: 25. Ordered by ID. Search and filters are applied within membership scope. Query parameters are retained in pagination links.",
         "security": [
           {
             "bearerAuth": []
@@ -748,9 +748,21 @@
           {
             "name": "page",
             "in": "query",
+            "required": false,
             "schema": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Case-insensitive literal substring search; %, _ and ! are literal characters."
             }
           }
         ]
@@ -868,7 +880,7 @@
     "/api/v1/branches": {
       "get": {
         "summary": "List accessible branches",
-        "description": "Requires branches.view. Fixed page size: 25. Ordered by ID.",
+        "description": "Requires branches.view. Fixed page size: 25. Ordered by ID. Search and filters are applied within membership scope. Query parameters are retained in pagination links. company_id is optional for discovery; branch_id requires company_id.",
         "security": [
           {
             "bearerAuth": []
@@ -977,6 +989,36 @@
           {
             "name": "page",
             "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Case-insensitive literal substring search; %, _ and ! are literal characters."
+            }
+          },
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
             "schema": {
               "type": "integer",
               "minimum": 1
@@ -1097,7 +1139,7 @@
     "/api/v1/customers": {
       "get": {
         "summary": "List accessible customers",
-        "description": "Requires customers.view. Fixed page size: 25. Ordered by ID.",
+        "description": "Requires customers.view. Fixed page size: 25. Ordered by ID. Search and filters are applied within membership scope. Query parameters are retained in pagination links. company_id is required; branch_id must belong to that company and the caller\u2019s scope.",
         "security": [
           {
             "bearerAuth": []
@@ -1206,9 +1248,50 @@
           {
             "name": "page",
             "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Case-insensitive literal substring search; %, _ and ! are literal characters."
+            }
+          },
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
             "schema": {
               "type": "integer",
               "minimum": 1
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "individual",
+                "corporate"
+              ]
             }
           }
         ]
@@ -1558,7 +1641,7 @@
     "/api/v1/vehicles": {
       "get": {
         "summary": "List accessible vehicles",
-        "description": "Requires vehicles.view. Fixed page size: 25. Ordered by ID.",
+        "description": "Requires vehicles.view. Fixed page size: 25. Ordered by ID. Search and filters are applied within membership scope. Query parameters are retained in pagination links. company_id is required; branch_id must belong to that company and the caller\u2019s scope.",
         "security": [
           {
             "bearerAuth": []
@@ -1667,9 +1750,52 @@
           {
             "name": "page",
             "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Case-insensitive literal substring search; %, _ and ! are literal characters."
+            }
+          },
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
             "schema": {
               "type": "integer",
               "minimum": 1
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "available",
+                "rented",
+                "maintenance",
+                "damaged"
+              ]
             }
           }
         ]
@@ -3512,6 +3638,455 @@
             }
           }
         }
+      },
+      "get": {
+        "summary": "List users in one company",
+        "description": "Requires users.view and whole-company membership, or platform administration. Hides platform accounts from company administrators. Responses contain only the selected company membership, not other memberships. Fixed page size 25, ordered by ID.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ManagedUser"
+                      }
+                    },
+                    "links": {
+                      "type": "object"
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied or disabled account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or outside company/branch scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicting workflow state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "HTTPS required for credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Case-insensitive literal substring search; %, _ and ! are literal characters."
+            }
+          },
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "company-admin",
+                "operations",
+                "viewer",
+                "driver"
+              ]
+            }
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/users/{user}": {
+      "patch": {
+        "summary": "Update user access in a company",
+        "description": "Requires users.manage and whole-company access. company_id is required in JSON. Only role, branch_id and is_active may change. Self access changes return 409. Company administrators cannot change global roles or activation for multi-company users (409), or manage platform accounts (404). Platform administrators may change global access for multi-company users. Deactivation revokes personal access tokens; existing sessions are denied by active-account middleware. Role assignments are global in this version.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied or disabled account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or outside company/branch scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicting workflow state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "HTTPS required for credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ManagedUser"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "company_id"
+                ],
+                "properties": {
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "branch_id": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1
+                  },
+                  "role": {
+                    "enum": [
+                      "company-admin",
+                      "operations",
+                      "viewer",
+                      "driver"
+                    ]
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "user",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/roles": {
+      "get": {
+        "summary": "List assignable roles and permissions",
+        "description": "Requires users.view and whole-company access. Driver baseline permits company/branch reads only. Assigned-rental permissions await M6.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "enum": [
+                              "company-admin",
+                              "operations",
+                              "viewer",
+                              "driver"
+                            ]
+                          },
+                          "permissions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied or disabled account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or outside company/branch scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicting workflow state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "HTTPS required for credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
       }
     }
   },
@@ -3670,6 +4245,37 @@
               "maintenance",
               "damaged"
             ]
+          },
+          "daily_rate_minor": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "default": 0,
+            "description": "Daily price in the owning company currency minor units. No quotation or VAT calculation is performed in M5."
+          },
+          "functions": {
+            "type": "array",
+            "maxItems": 7,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "gps_tracker",
+                "automatic",
+                "awd_4x4",
+                "air_conditioning",
+                "chauffeur_eligible",
+                "bluetooth",
+                "child_seat"
+              ]
+            },
+            "default": []
+          },
+          "odometer_unit": {
+            "type": "string",
+            "enum": [
+              "km"
+            ],
+            "description": "All odometer values are kilometres. Existing numeric readings are unchanged."
           }
         }
       },
@@ -4100,6 +4706,37 @@
               "integer",
               "null"
             ]
+          },
+          "daily_rate_minor": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "default": 0,
+            "description": "Daily price in the owning company currency minor units. No quotation or VAT calculation is performed in M5."
+          },
+          "functions": {
+            "type": "array",
+            "maxItems": 7,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "gps_tracker",
+                "automatic",
+                "awd_4x4",
+                "air_conditioning",
+                "chauffeur_eligible",
+                "bluetooth",
+                "child_seat"
+              ]
+            },
+            "default": []
+          },
+          "odometer_unit": {
+            "type": "string",
+            "enum": [
+              "km"
+            ],
+            "description": "All odometer values are kilometres. Existing numeric readings are unchanged."
           }
         }
       },
@@ -4370,6 +5007,72 @@
               "available",
               "maintenance",
               "damaged"
+            ]
+          },
+          "daily_rate_minor": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "default": 0,
+            "description": "Daily price in the owning company currency minor units. No quotation or VAT calculation is performed in M5."
+          },
+          "functions": {
+            "type": "array",
+            "maxItems": 7,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "gps_tracker",
+                "automatic",
+                "awd_4x4",
+                "air_conditioning",
+                "chauffeur_eligible",
+                "bluetooth",
+                "child_seat"
+              ]
+            },
+            "default": []
+          },
+          "odometer_unit": {
+            "type": "string",
+            "enum": [
+              "km"
+            ],
+            "description": "All odometer values are kilometres. Existing numeric readings are unchanged."
+          }
+        }
+      },
+      "ManagedUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "company_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "branch_id": {
+            "type": [
+              "integer",
+              "null"
             ]
           }
         }

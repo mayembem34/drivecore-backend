@@ -8,6 +8,7 @@ use App\Http\Requests\SaveCustomerRequest;
 use App\Http\Resources\RecordResource;
 use App\Models\Customer;
 use App\Support\CompanyAccess;
+use App\Support\DirectoryQuery;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,7 @@ class CustomerController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        return RecordResource::collection(CompanyAccess::scope(Customer::query(), $request->user())->orderBy('id')->paginate(25));
+        return RecordResource::collection(DirectoryQuery::apply($request, CompanyAccess::scope(Customer::query(), $request->user()), ['name', 'email', 'phone'], ['type' => ['individual', 'corporate']])->orderBy('id')->paginate(25)->withQueryString());
     }
 
     public function show(Request $request, int $customer): RecordResource
