@@ -213,7 +213,7 @@ class ApiFoundationTest extends TestCase
             $user->syncRoles($role);
             foreach ([$branch, $customer, $vehicle] as $record) {
                 $domain = Str::plural(Str::snake(class_basename($record)));
-                $view = $role === 'company-admin' || $role === 'viewer' || ($role === 'operations' && $domain !== 'branches') || ($role === 'driver' && $domain === 'branches');
+                $view = $role === 'company-admin' || $role === 'viewer' || ($role === 'operations') || ($role === 'driver' && $domain === 'branches');
                 $manage = $role === 'company-admin' || ($role === 'operations' && $domain !== 'branches');
                 $this->assertSame($view, $policy->view($user, $record), $role.' '.$domain.' view');
                 $this->assertSame($manage, $policy->update($user, $record), $role.' '.$domain.' manage');

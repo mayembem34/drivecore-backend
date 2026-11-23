@@ -20,7 +20,7 @@ class RolePermissionSeeder extends Seeder
             }
         }
         Role::findOrCreate('company-admin', 'web')->syncPermissions($permissions);
-        Role::findOrCreate('operations', 'web')->syncPermissions(array_values(array_filter($permissions, fn ($name) => ! str_starts_with($name, 'users.') && ! str_starts_with($name, 'companies.') && ! str_starts_with($name, 'branches.'))));
+        Role::findOrCreate('operations', 'web')->syncPermissions(array_values(array_filter($permissions, fn ($name) => ! str_starts_with($name, 'users.') && ! in_array($name, ['companies.manage', 'branches.manage'], true))));
         Role::findOrCreate('viewer', 'web')->syncPermissions(array_values(array_filter($permissions, fn ($name) => str_ends_with($name, '.view') && ! str_starts_with($name, 'users.'))));
         Role::findOrCreate('driver', 'web')->syncPermissions(['companies.view', 'branches.view']);
     }
