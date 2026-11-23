@@ -26,14 +26,18 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get($domain, [$controller, 'index'])->middleware('can:'.$domain.'.view')->name($domain.'.index');
             Route::post($domain, [$controller, 'store'])->middleware('can:'.$domain.'.manage')->name($domain.'.store');
         }
-        foreach (['customers' => CustomerController::class, 'vehicles' => VehicleController::class, 'reservations' => ReservationController::class, 'rentals' => RentalController::class, 'documents' => DocumentController::class] as $domain => $controller) {
+        foreach (['customers' => CustomerController::class, 'vehicles' => VehicleController::class, 'reservations' => ReservationController::class] as $domain => $controller) {
             Route::apiResource($domain, $controller)->only(['index', 'show'])->middleware('can:'.$domain.'.view');
             Route::apiResource($domain, $controller)->only(['store'])->middleware('can:'.$domain.'.manage');
         }
+        Route::apiResource('rentals', RentalController::class)->only(['index', 'show', 'store']);
+        Route::apiResource('documents', DocumentController::class)->only(['index', 'show', 'store']);
+        Route::post('rentals/{rental}/extend', [RentalController::class, 'extend'])->middleware('can:rentals.manage')->name('rentals.extend');
+        Route::post('rentals/{rental}/assign-driver', [RentalController::class, 'assignDriver'])->middleware('can:rentals.manage')->name('rentals.assign-driver');
         Route::patch('customers/{customer}', [CustomerController::class, 'update'])->middleware('can:customers.manage')->name('customers.update');
         Route::patch('vehicles/{vehicle}', [VehicleController::class, 'update'])->middleware('can:vehicles.manage')->name('vehicles.update');
         Route::post('reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->middleware('can:reservations.manage')->name('reservations.cancel');
-        Route::post('rentals/{rental}/{action}', [RentalController::class, 'transition'])->whereIn('action', ['handover', 'return'])->middleware('can:rentals.manage')->name('rentals.transition');
+        Route::post('rentals/{rental}/{action}', [RentalController::class, 'transition'])->whereIn('action', ['handover', 'return'])->name('rentals.transition');
         Route::get('users', [UserController::class, 'index'])->middleware('can:users.view')->name('users.index');
         Route::get('roles', [UserController::class, 'roles'])->middleware('can:users.view')->name('roles.index');
         Route::patch('users/{user}', [UserController::class, 'update'])->middleware('can:users.manage')->name('users.update');

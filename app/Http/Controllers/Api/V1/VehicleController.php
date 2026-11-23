@@ -22,7 +22,7 @@ class VehicleController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        return RecordResource::collection(DirectoryQuery::apply($request, CompanyAccess::scope(Vehicle::query(), $request->user()), ['registration', 'make', 'model'], ['status' => ['available', 'rented', 'maintenance', 'damaged']])->orderBy('id')->paginate(25)->withQueryString());
+        return RecordResource::collection(DirectoryQuery::apply($request, CompanyAccess::scope(Vehicle::query(), $request->user()), ['registration', 'make', 'model'], ['status' => ['available', 'rented', 'maintenance', 'damaged']], sortColumns: ['registration' => 'registration', 'make' => 'make', 'daily_rate_minor' => 'daily_rate_minor', 'odometer' => 'odometer', 'status' => 'status'])->orderBy('id')->paginate(25)->withQueryString());
     }
 
     public function show(Request $request, int $vehicle): RecordResource

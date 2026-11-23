@@ -18,7 +18,7 @@ class CustomerController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        return RecordResource::collection(DirectoryQuery::apply($request, CompanyAccess::scope(Customer::query(), $request->user()), ['name', 'email', 'phone'], ['type' => ['individual', 'corporate']])->orderBy('id')->paginate(25)->withQueryString());
+        return RecordResource::collection(DirectoryQuery::apply($request, CompanyAccess::scope(Customer::query(), $request->user()), ['name', 'email', 'phone'], ['type' => ['individual', 'corporate']], sortColumns: ['name' => 'name', 'type' => 'type', 'email' => 'email'])->orderBy('id')->paginate(25)->withQueryString());
     }
 
     public function show(Request $request, int $customer): RecordResource

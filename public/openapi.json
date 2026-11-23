@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "DriveCore Backend API",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "Initial operational API. Company/branch permissions are enforced server-side. Roles are an engineering baseline pending client approval. Financial calculations, invoices, credit approval, rental extensions and structured inspection evidence are not implemented by this version."
   },
   "servers": [
@@ -1139,7 +1139,7 @@
     "/api/v1/customers": {
       "get": {
         "summary": "List accessible customers",
-        "description": "Requires customers.view. Fixed page size: 25. Ordered by ID. Search and filters are applied within membership scope. Query parameters are retained in pagination links. company_id is required; branch_id must belong to that company and the caller\u2019s scope.",
+        "description": "Requires customers.view. Fixed page size: 25. Ordered by ID. Search and filters are applied within membership scope. Query parameters are retained in pagination links. company_id is required; branch_id must belong to that company and the caller\u2019s scope. Optional sort uses an explicit field allowlist; dir requires sort. Stable ID tie-breaker follows the same direction; nullable sort values are last. Without sort, IDs ascend.",
         "security": [
           {
             "bearerAuth": []
@@ -1292,6 +1292,32 @@
                 "individual",
                 "corporate"
               ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "type",
+                "email"
+              ]
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
             }
           }
         ]
@@ -1641,7 +1667,7 @@
     "/api/v1/vehicles": {
       "get": {
         "summary": "List accessible vehicles",
-        "description": "Requires vehicles.view. Fixed page size: 25. Ordered by ID. Search and filters are applied within membership scope. Query parameters are retained in pagination links. company_id is required; branch_id must belong to that company and the caller\u2019s scope.",
+        "description": "Requires vehicles.view. Fixed page size: 25. Ordered by ID. Search and filters are applied within membership scope. Query parameters are retained in pagination links. company_id is required; branch_id must belong to that company and the caller\u2019s scope. Optional sort uses an explicit field allowlist; dir requires sort. Stable ID tie-breaker follows the same direction; nullable sort values are last. Without sort, IDs ascend.",
         "security": [
           {
             "bearerAuth": []
@@ -1796,6 +1822,34 @@
                 "maintenance",
                 "damaged"
               ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "registration",
+                "make",
+                "daily_rate_minor",
+                "odometer",
+                "status"
+              ]
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
             }
           }
         ]
@@ -2145,7 +2199,7 @@
     "/api/v1/reservations": {
       "get": {
         "summary": "List accessible reservations",
-        "description": "Requires reservations.view. Fixed page size: 25. Ordered by ID.",
+        "description": "company_id is required; optional branch_id must belong to that company and the caller\u2019s scope. Fixed page size 25. Search is case-insensitive literal substring; filters and sort are applied before pagination. Requires reservations.view. Search customer name, vehicle registration or reservation ID. Optional sort uses an explicit field allowlist; dir requires sort. Stable ID tie-breaker follows the same direction; nullable sort values are last. Without sort, IDs ascend.",
         "security": [
           {
             "bearerAuth": []
@@ -2252,11 +2306,98 @@
         },
         "parameters": [
           {
-            "name": "page",
+            "name": "company_id",
             "in": "query",
+            "required": true,
             "schema": {
               "type": "integer",
               "minimum": 1
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "confirmed",
+                "cancelled",
+                "completed"
+              ]
+            }
+          },
+          {
+            "name": "vehicle_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "id",
+                "customer_name",
+                "vehicle_registration",
+                "starts_at",
+                "status"
+              ]
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
             }
           }
         ]
@@ -2486,7 +2627,7 @@
     "/api/v1/rentals": {
       "get": {
         "summary": "List accessible rentals",
-        "description": "Requires rentals.view. Fixed page size: 25. Ordered by ID.",
+        "description": "company_id is required; optional branch_id must belong to that company and the caller\u2019s scope. Fixed page size 25. Search is case-insensitive literal substring; filters and sort are applied before pagination. Requires rentals.view, or driver role with access restricted to assigned rentals within membership scope. Search vehicle registration, customer name, handover or return notes. Optional sort uses an explicit field allowlist; dir requires sort. Stable ID tie-breaker follows the same direction; nullable sort values are last. Without sort, IDs ascend.",
         "security": [
           {
             "bearerAuth": []
@@ -2593,18 +2734,105 @@
         },
         "parameters": [
           {
-            "name": "page",
+            "name": "company_id",
             "in": "query",
+            "required": true,
             "schema": {
               "type": "integer",
               "minimum": 1
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "draft",
+                "active",
+                "returned"
+              ]
+            }
+          },
+          {
+            "name": "driver_user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "vehicle_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "id",
+                "vehicle_registration",
+                "customer_name",
+                "driver_name",
+                "status"
+              ]
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
             }
           }
         ]
       },
       "post": {
         "summary": "Create rental",
-        "description": "Requires rentals.manage.",
+        "description": "Requires rentals.manage. Optional driver_user_id must identify an active driver with membership in the rental company and branch. Rental creation still requires a confirmed, unexpired reservation; existing drafts can be handed over early or late.",
         "security": [
           {
             "bearerAuth": []
@@ -2715,7 +2943,7 @@
     "/api/v1/rentals/{rental}": {
       "get": {
         "summary": "Get rental",
-        "description": "",
+        "description": " Drivers may read only assigned rentals within their company/branch membership scope.",
         "security": [
           {
             "bearerAuth": []
@@ -2827,7 +3055,7 @@
     "/api/v1/documents": {
       "get": {
         "summary": "List accessible documents",
-        "description": "Requires documents.view. Fixed page size: 25. Ordered by ID.",
+        "description": "company_id is required; optional branch_id must belong to that company and the caller\u2019s scope. Fixed page size 25. Search is case-insensitive literal substring; filters and sort are applied before pagination. Requires documents.view, or driver role restricted to documents linked to assigned rentals. Search original_name and mime_type. entity_id requires entity_type. Unsupported future entity types have no rows until those modules exist. Optional sort uses an explicit field allowlist; dir requires sort. Stable ID tie-breaker follows the same direction; nullable sort values are last. Without sort, IDs ascend.",
         "security": [
           {
             "bearerAuth": []
@@ -2934,18 +3162,97 @@
         },
         "parameters": [
           {
-            "name": "page",
+            "name": "company_id",
             "in": "query",
+            "required": true,
             "schema": {
               "type": "integer",
               "minimum": 1
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "name": "entity_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "vehicle",
+                "customer",
+                "reservation",
+                "rental",
+                "quotation",
+                "invoice"
+              ]
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "original_name",
+                "size",
+                "expires_at"
+              ]
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
             }
           }
         ]
       },
       "post": {
         "summary": "Create document",
-        "description": "Requires documents.manage.",
+        "description": "Requires documents.manage. entity_type and entity_id must be supplied together, or both omitted/null. Target must be accessible in the exact company and branch. Only vehicle/customer/reservation/rental targets exist in M6; quotation/invoice uploads return 422 until those modules are implemented. Drivers may upload only against assigned rentals; unrelated/unlinked documents are denied. Multipart identifiers are returned as JSON integers.",
         "security": [
           {
             "bearerAuth": []
@@ -3056,7 +3363,7 @@
     "/api/v1/documents/{document}": {
       "get": {
         "summary": "Download a private document",
-        "description": "",
+        "description": " Drivers may download only documents linked to their assigned rentals, and access is removed on reassignment. Binary response retains private, no-store and nosniff headers.",
         "security": [
           {
             "bearerAuth": []
@@ -3288,7 +3595,7 @@
     "/api/v1/rentals/{rental}/handover": {
       "post": {
         "summary": "Hand over a draft rental",
-        "description": "Requires rentals.manage. Reservation must be current and vehicle available. Odometer cannot decrease.",
+        "description": "Requires rentals.manage, or driver role assigned to this rental and within company/branch scope. Authorization and state are rechecked after row locking. Odometer cannot decrease. Handover is allowed before or after the scheduled period while rental is draft, vehicle available and reservation confirmed; a scheduled time and signed delta_minutes are audited.",
         "security": [
           {
             "bearerAuth": []
@@ -3410,7 +3717,7 @@
     "/api/v1/rentals/{rental}/return": {
       "post": {
         "summary": "Return an active rental",
-        "description": "Requires rentals.manage. Records inspection notes and final vehicle condition. Financial closure is outside this initial workflow.",
+        "description": "Requires rentals.manage, or driver role assigned to this rental and within company/branch scope. Authorization and state are rechecked after row locking. Odometer cannot decrease. Return requires an active rental. M6 does not generate invoices or accept extra charges; those are M8 features.",
         "security": [
           {
             "bearerAuth": []
@@ -3641,7 +3948,7 @@
       },
       "get": {
         "summary": "List users in one company",
-        "description": "Requires users.view and whole-company membership, or platform administration. Hides platform accounts from company administrators. Responses contain only the selected company membership, not other memberships. Fixed page size 25, ordered by ID.",
+        "description": "Requires users.view and whole-company membership, or platform administration. Hides platform accounts from company administrators. Responses contain only the selected company membership, not other memberships. Fixed page size 25, ordered by ID. Optional sort uses an explicit field allowlist; dir requires sort. Stable ID tie-breaker follows the same direction; nullable sort values are last. Without sort, IDs ascend.",
         "security": [
           {
             "bearerAuth": []
@@ -3804,6 +4111,33 @@
             "required": false,
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "email",
+                "role",
+                "is_active"
+              ]
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
             }
           }
         ]
@@ -4088,6 +4422,279 @@
           }
         ]
       }
+    },
+    "/api/v1/rentals/{rental}/extend": {
+      "post": {
+        "summary": "Extend rental",
+        "description": "Requires rentals.manage; driver self-scope does not grant this action. Active rental only. Lock vehicle, rental and reservation; reject overlapping confirmed bookings with 409, non-increasing end with 422. Adjacent bookings are allowed. Extension notes are retained in audit metadata.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Rental"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied or disabled account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or outside company/branch scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicting workflow state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "HTTPS required for credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rental",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ends_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "ISO-8601 datetime with explicit Z or timezone offset, later than current end."
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "ends_at"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rentals/{rental}/assign-driver": {
+      "post": {
+        "summary": "Assign driver rental",
+        "description": "Requires rentals.manage. Draft or active rentals only (409 otherwise). Explicit null unassigns the driver. Non-null user must be active, have driver role and company/branch membership (422 otherwise).",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Rental"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied or disabled account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found or outside company/branch scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicting workflow state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "HTTPS required for credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rental",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "driver_user_id": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "driver_user_id"
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4255,20 +4862,14 @@
           },
           "functions": {
             "type": "array",
-            "maxItems": 7,
+            "maxItems": 20,
             "uniqueItems": true,
             "items": {
-              "enum": [
-                "gps_tracker",
-                "automatic",
-                "awd_4x4",
-                "air_conditioning",
-                "chauffeur_eligible",
-                "bluetooth",
-                "child_seat"
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
             },
-            "default": []
+            "description": "Custom tags: trim and collapse whitespace; reject duplicates ignoring case. Legacy slug tags remain valid."
           },
           "odometer_unit": {
             "type": "string",
@@ -4326,6 +4927,13 @@
         "properties": {
           "reservation_id": {
             "type": "integer",
+            "minimum": 1
+          },
+          "driver_user_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 1
           }
         }
@@ -4479,6 +5087,35 @@
             "type": "string",
             "format": "binary",
             "description": "PDF, JPEG or PNG; maximum 10 MiB."
+          },
+          "entity_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "vehicle",
+              "customer",
+              "reservation",
+              "rental",
+              "quotation",
+              "invoice",
+              null
+            ]
+          },
+          "entity_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -4716,20 +5353,14 @@
           },
           "functions": {
             "type": "array",
-            "maxItems": 7,
+            "maxItems": 20,
             "uniqueItems": true,
             "items": {
-              "enum": [
-                "gps_tracker",
-                "automatic",
-                "awd_4x4",
-                "air_conditioning",
-                "chauffeur_eligible",
-                "bluetooth",
-                "child_seat"
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
             },
-            "default": []
+            "description": "Custom tags: trim and collapse whitespace; reject duplicates ignoring case. Legacy slug tags remain valid."
           },
           "odometer_unit": {
             "type": "string",
@@ -4802,6 +5433,31 @@
               "string",
               "null"
             ]
+          },
+          "customer_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "vehicle_registration": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "vehicle_label": {
+            "type": "string"
+          },
+          "has_rental": {
+            "type": "boolean"
+          },
+          "rental_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
           }
         }
       },
@@ -4885,6 +5541,51 @@
               "string",
               "null"
             ]
+          },
+          "driver_user_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "odometer_unit": {
+            "enum": [
+              "km"
+            ]
+          },
+          "customer_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "customer_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "vehicle_registration": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "vehicle_label": {
+            "type": "string"
+          },
+          "driver_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -4938,6 +5639,35 @@
               "integer",
               "null"
             ]
+          },
+          "entity_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "vehicle",
+              "customer",
+              "reservation",
+              "rental",
+              "quotation",
+              "invoice",
+              null
+            ]
+          },
+          "entity_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -5018,20 +5748,14 @@
           },
           "functions": {
             "type": "array",
-            "maxItems": 7,
+            "maxItems": 20,
             "uniqueItems": true,
             "items": {
-              "enum": [
-                "gps_tracker",
-                "automatic",
-                "awd_4x4",
-                "air_conditioning",
-                "chauffeur_eligible",
-                "bluetooth",
-                "child_seat"
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
             },
-            "default": []
+            "description": "Custom tags: trim and collapse whitespace; reject duplicates ignoring case. Legacy slug tags remain valid."
           },
           "odometer_unit": {
             "type": "string",

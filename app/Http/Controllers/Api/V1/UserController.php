@@ -9,6 +9,7 @@ use App\Http\Resources\UserResource;
 use App\Models\Company;
 use App\Models\User;
 use App\Support\CompanyAccess;
+use App\Support\DirectoryQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -57,6 +58,8 @@ class UserController extends Controller
             $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], trim($data['q'])).'%';
             $query->where(fn (Builder $part) => $part->whereRaw("LOWER(name) LIKE LOWER(?) ESCAPE '!'", [$pattern])->orWhereRaw("LOWER(email) LIKE LOWER(?) ESCAPE '!'", [$pattern]));
         }
+
+        $query = DirectoryQuery::sort($request, $query, ['name' => 'name', 'email' => 'email', 'is_active' => 'is_active', 'role' => Role::selectRaw('MIN(roles.name)')->join('model_has_roles', 'model_has_roles.role_id', '=', 'roles.id')->whereColumn('model_has_roles.model_id', 'users.id')->where('model_has_roles.model_type', (new User)->getMorphClass())->where('roles.guard_name', 'web')]);
 
         return ManagedUserResource::collection($query->with(['roles', 'companies' => fn ($query) => $query->where('companies.id', $company->id)])->orderBy('id')->paginate(25)->withQueryString());
     }

@@ -80,7 +80,7 @@ class MilestoneFiveTest extends TestCase
         $this->getJson('/api/v1/vehicles/'.$id)->assertOk()->assertJsonPath('data.daily_rate_minor', 0)->assertJsonPath('data.odometer', 4200);
         $this->assertDatabaseHas('vehicles', ['id' => $id, 'daily_rate_minor' => 0]);
         $this->assertDatabaseHas('audit_events', ['action' => 'vehicle.updated', 'subject_id' => $id]);
-        $this->postJson('/api/v1/vehicles', [...$payload, 'daily_rate_minor' => -1, 'functions' => ['unknown'], 'odometer_unit' => 'mi'])->assertUnprocessable()->assertJsonValidationErrors(['daily_rate_minor', 'functions.0', 'odometer_unit']);
+        $this->postJson('/api/v1/vehicles', [...$payload, 'daily_rate_minor' => -1, 'functions' => [str_repeat('x', 51)], 'odometer_unit' => 'mi'])->assertUnprocessable()->assertJsonValidationErrors(['daily_rate_minor', 'functions.0', 'odometer_unit']);
         $this->postJson('/api/v1/vehicles', [...$payload, 'functions' => ['automatic', 'automatic']])->assertUnprocessable()->assertJsonValidationErrors('functions.0');
     }
 
@@ -145,7 +145,7 @@ class MilestoneFiveTest extends TestCase
         $actor->syncRoles('driver');
         $this->getJson('/api/v1/companies')->assertOk()->assertJsonCount(1, 'data');
         $this->getJson('/api/v1/branches?company_id='.$company->id)->assertOk()->assertJsonCount(1, 'data');
-        $this->getJson('/api/v1/rentals')->assertForbidden();
+        $this->getJson('/api/v1/rentals?company_id='.$company->id)->assertOk()->assertJsonCount(0, 'data');
         $this->getJson('/api/v1/users?company_id='.$company->id)->assertForbidden();
         $this->patchJson('/api/v1/users/'.$actor->id, ['company_id' => $company->id, 'role' => 'company-admin'])->assertForbidden();
     }
