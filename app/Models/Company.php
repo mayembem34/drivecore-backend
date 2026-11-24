@@ -10,7 +10,7 @@ class Company extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'currency'];
+    protected $fillable = ['name', 'currency', 'vat_rate_pct', 'discount_approval_threshold_pct'];
 
     public function users(): BelongsToMany
     {
@@ -19,6 +19,6 @@ class Company extends Model
 
     protected function casts(): array
     {
-        return [];
+        return ['vat_rate_pct' => 'float', 'discount_approval_threshold_pct' => 'float'];
     }
 }

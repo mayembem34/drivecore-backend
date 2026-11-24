@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Quotation;
 use App\Models\Rental;
 use App\Models\Reservation;
 use App\Models\Vehicle;
@@ -22,6 +23,10 @@ class RecordResource extends JsonResource
         }
         if ($this->resource instanceof Rental && $this->resource->relationLoaded('reservation')) {
             $data += ['odometer_unit' => 'km', 'customer_id' => $this->reservation?->customer_id, 'customer_name' => $this->reservation?->customer?->name, 'vehicle_registration' => $this->vehicle?->registration, 'vehicle_label' => trim(($this->vehicle?->make ?? '').' '.($this->vehicle?->model ?? '')), 'driver_name' => $this->driver?->name, 'starts_at' => $this->reservation?->starts_at?->toISOString(), 'ends_at' => $this->reservation?->ends_at?->toISOString()];
+        }
+
+        if ($this->resource instanceof Quotation) {
+            $data += ['customer_name' => $this->customer?->name, 'discount_decided_by_name' => $this->decider?->name, 'vehicles' => $this->vehicles->map(fn ($v) => ['vehicle_id' => $v->id, 'registration' => $v->registration, 'make' => $v->make, 'model' => $v->model, 'daily_rate_minor' => (int) $v->pivot->daily_rate_minor, 'line_subtotal_minor' => (int) $v->pivot->line_subtotal_minor, 'reservation_id' => $v->pivot->reservation_id === null ? null : (int) $v->pivot->reservation_id])->all(), 'reservation_ids' => $this->vehicles->pluck('pivot.reservation_id')->filter()->map(fn ($id) => (int) $id)->values()->all()];
         }
 
         return $data;
