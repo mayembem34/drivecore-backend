@@ -120,10 +120,10 @@ class QuotationController extends Controller
             foreach ($vehicles as $vehicle) {
                 $reservation = Reservation::create(['company_id' => $record->company_id, 'branch_id' => $record->branch_id, 'customer_id' => $record->customer_id, 'vehicle_id' => $vehicle->id, 'created_by' => $request->user()->id, 'starts_at' => $record->starts_at, 'ends_at' => $record->ends_at, 'status' => 'confirmed']);
                 $record->vehicles()->updateExistingPivot($vehicle->id, ['reservation_id' => $reservation->id]);
-                RecordAudit::write($request->user(),'reservation.created',$reservation);
+                RecordAudit::write($request->user(), 'reservation.created', $reservation);
             }
             $record->update(['status' => 'converted', 'converted_at' => now()]);
-            RecordAudit::write($request->user(),'quotation.converted',$record);
+            RecordAudit::write($request->user(), 'quotation.converted', $record);
 
             return $this->resource($record);
         }, 3);
