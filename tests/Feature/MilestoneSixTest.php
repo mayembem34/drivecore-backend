@@ -192,7 +192,7 @@ class MilestoneSixTest extends TestCase
         $this->assertDatabaseHas('documents', ['id' => $id, 'entity_type' => 'rental', 'entity_id' => $rental->id]);
         Storage::disk('local')->assertExists(Document::findOrFail($id)->path);
         $this->postJson('/api/v1/documents', [...$data, 'entity_id' => 999999])->assertNotFound();
-        $this->postJson('/api/v1/documents', [...$data, 'entity_type' => 'invoice'])->assertUnprocessable();
+        $this->postJson('/api/v1/documents', [...$data, 'entity_type' => 'invoice'])->assertNotFound();
         $this->postJson('/api/v1/documents', [...$data, 'entity_type' => null])->assertUnprocessable();
         unset($data['entity_type']);
         $this->postJson('/api/v1/documents', $data)->assertUnprocessable()->assertJsonValidationErrors('entity_type');

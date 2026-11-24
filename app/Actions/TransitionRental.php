@@ -61,6 +61,7 @@ final class TransitionRental
                 $rental->fill(['status' => 'returned', 'returned_at' => now(), 'return_odometer' => $data['odometer'], 'return_notes' => $data['notes']]);
                 $vehicle->update(['status' => $data['vehicle_status'], 'odometer' => $data['odometer']]);
                 $reservation->update(['status' => 'completed']);
+                (new InvoiceReturnedRental)->handle($rental, $data, $user);
             } else {
                 abort(422, 'Unknown rental transition.');
             }

@@ -26,6 +26,14 @@ class RolePermissionSeeder extends Seeder
         Permission::findOrCreate('quotations.approve_discount', 'web');
         Role::findOrCreate('company-admin', 'web')->givePermissionTo(['settings.manage', 'quotations.approve_discount']);
         Role::findOrCreate('finance', 'web')->syncPermissions(['companies.view', 'branches.view', 'customers.view', 'vehicles.view', 'reservations.view', 'rentals.view', 'documents.view', 'quotations.view', 'quotations.approve_discount']);
+        $financePermissions = ['invoices.view', 'invoices.manage', 'payments.manage', 'expenses.view', 'expenses.manage', 'gl.view'];
+        foreach ($financePermissions as $permission) {
+            Permission::findOrCreate($permission, 'web');
+        }
+        foreach (['company-admin', 'finance'] as $role) {
+            Role::findOrCreate($role, 'web')->givePermissionTo($financePermissions);
+        }
+        Role::findOrCreate('viewer', 'web')->givePermissionTo(['invoices.view', 'expenses.view']);
         Role::findOrCreate('driver', 'web')->syncPermissions(['companies.view', 'branches.view']);
     }
 }
