@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "DriveCore Backend API",
-    "version": "0.3.0",
-    "description": "Initial operational API. Company/branch permissions are enforced server-side. Roles are an engineering baseline pending client approval. Financial calculations, invoices, credit approval, rental extensions and structured inspection evidence are not implemented by this version."
+    "version": "0.4.0",
+    "description": "DriveCore operational API through M7: scoped reservations/rentals/documents, driver assignment, extensions, quotations, discount approvals, company financial settings and private server PDF exports. Invoice/payment/accounting workflows and later milestones are not implemented in this version."
   },
   "servers": [
     {
@@ -4694,6 +4694,652 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/quotations": {
+      "get": {
+        "summary": "List company/branch-scoped quotations; quotations.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create multi-vehicle quotation with snapshotted prices; quotations.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "201": {
+            "description": "Created quotation with vehicles, pricing and approval status"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "branch_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "customer_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "vehicle_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 25,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "starts_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "ends_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "discount_pct": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 10000
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "branch_id",
+                  "customer_id",
+                  "vehicle_ids",
+                  "starts_at",
+                  "ends_at"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotations/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "summary": "Read quotation with vehicles and reservation_ids; quotations.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/quotations/{id}/approve-discount": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "approve-discount quotation; permissions and scoped record authorization enforced",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 500
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotations/{id}/reject-discount": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "reject-discount quotation; permissions and scoped record authorization enforced",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 500
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotations/{id}/cancel": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "cancel quotation; permissions and scoped record authorization enforced",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/quotations/{id}/convert": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "convert quotation; permissions and scoped record authorization enforced",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/companies/{id}/settings": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "summary": "Read financial settings; companies.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update settings; settings.manage and whole-company membership",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "vat_rate_pct": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "discount_approval_threshold_pct": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                },
+                "required": [
+                  "vat_rate_pct",
+                  "discount_approval_threshold_pct"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotations/{id}/pdf": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "summary": "Private authoritative PDF; matching view permission or assigned rental driver",
+        "responses": {
+          "200": {
+            "description": "Private PDF; nosniff and no-store headers",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "download",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Use attachment disposition instead of inline"
+          }
+        ]
+      }
+    },
+    "/api/v1/reservations/{id}/pdf": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "summary": "Private authoritative PDF; matching view permission or assigned rental driver",
+        "responses": {
+          "200": {
+            "description": "Private PDF; nosniff and no-store headers",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "download",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Use attachment disposition instead of inline"
+          }
+        ]
+      }
+    },
+    "/api/v1/rentals/{id}/pdf": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "summary": "Private authoritative PDF; matching view permission or assigned rental driver",
+        "responses": {
+          "200": {
+            "description": "Private PDF; nosniff and no-store headers",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "download",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Use attachment disposition instead of inline"
+          }
+        ]
       }
     }
   },

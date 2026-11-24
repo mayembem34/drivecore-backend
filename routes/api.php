@@ -3,10 +3,13 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BranchController;
 use App\Http\Controllers\Api\V1\CompanyController;
+use App\Http\Controllers\Api\V1\CompanySettingsController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\QuotationController;
 use App\Http\Controllers\Api\V1\ReadinessController;
+use App\Http\Controllers\Api\V1\RecordPdfController;
 use App\Http\Controllers\Api\V1\RentalController;
 use App\Http\Controllers\Api\V1\ReservationController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -38,6 +41,14 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::patch('vehicles/{vehicle}', [VehicleController::class, 'update'])->middleware('can:vehicles.manage')->name('vehicles.update');
         Route::post('reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->middleware('can:reservations.manage')->name('reservations.cancel');
         Route::post('rentals/{rental}/{action}', [RentalController::class, 'transition'])->whereIn('action', ['handover', 'return'])->name('rentals.transition');
+        Route::get('{domain}/{id}/pdf', RecordPdfController::class)->whereIn('domain', ['quotations', 'reservations', 'rentals'])->whereNumber('id');
+        Route::get('companies/{company}/settings', [CompanySettingsController::class, 'show'])->middleware('can:companies.view');
+        Route::patch('companies/{company}/settings', [CompanySettingsController::class, 'update'])->middleware('can:settings.manage');
+        Route::apiResource('quotations', QuotationController::class)->only(['index', 'show'])->middleware('can:quotations.view');
+        Route::post('quotations', [QuotationController::class, 'store'])->middleware('can:quotations.manage');
+        Route::post('quotations/{quotation}/{decision}', [QuotationController::class, 'decide'])->whereIn('decision', ['approve-discount', 'reject-discount'])->middleware('can:quotations.approve_discount');
+        Route::post('quotations/{quotation}/cancel', [QuotationController::class, 'cancel'])->middleware('can:quotations.manage');
+        Route::post('quotations/{quotation}/convert', [QuotationController::class, 'convert'])->middleware(['can:quotations.manage', 'can:reservations.manage']);
         Route::get('users', [UserController::class, 'index'])->middleware('can:users.view')->name('users.index');
         Route::get('roles', [UserController::class, 'roles'])->middleware('can:users.view')->name('roles.index');
         Route::patch('users/{user}', [UserController::class, 'update'])->middleware('can:users.manage')->name('users.update');
