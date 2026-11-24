@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Invoice;
+use App\Models\JournalEntry;
 use App\Models\Quotation;
 use App\Models\Rental;
 use App\Models\Reservation;
@@ -22,11 +24,18 @@ class RecordResource extends JsonResource
             $data += ['customer_name' => $this->customer?->name, 'vehicle_registration' => $this->vehicle?->registration, 'vehicle_label' => trim(($this->vehicle?->make ?? '').' '.($this->vehicle?->model ?? '')), 'has_rental' => $this->rental !== null, 'rental_id' => $this->rental?->id];
         }
         if ($this->resource instanceof Rental && $this->resource->relationLoaded('reservation')) {
-            $data += ['odometer_unit' => 'km', 'customer_id' => $this->reservation?->customer_id, 'customer_name' => $this->reservation?->customer?->name, 'vehicle_registration' => $this->vehicle?->registration, 'vehicle_label' => trim(($this->vehicle?->make ?? '').' '.($this->vehicle?->model ?? '')), 'driver_name' => $this->driver?->name, 'starts_at' => $this->reservation?->starts_at?->toISOString(), 'ends_at' => $this->reservation?->ends_at?->toISOString()];
+            $data += ['odometer_unit' => 'km', 'customer_id' => $this->reservation?->customer_id, 'customer_name' => $this->reservation?->customer?->name, 'vehicle_registration' => $this->vehicle?->registration, 'vehicle_label' => trim(($this->vehicle?->make ?? '').' '.($this->vehicle?->model ?? '')), 'invoice_id' => $this->whenLoaded('invoice', fn () => $this->invoice?->id), 'driver_name' => $this->driver?->name, 'starts_at' => $this->reservation?->starts_at?->toISOString(), 'ends_at' => $this->reservation?->ends_at?->toISOString()];
         }
 
         if ($this->resource instanceof Quotation) {
             $data += ['customer_name' => $this->customer?->name, 'discount_decided_by_name' => $this->decider?->name, 'vehicles' => $this->vehicles->map(fn ($v) => ['vehicle_id' => $v->id, 'registration' => $v->registration, 'make' => $v->make, 'model' => $v->model, 'daily_rate_minor' => (int) $v->pivot->daily_rate_minor, 'line_subtotal_minor' => (int) $v->pivot->line_subtotal_minor, 'reservation_id' => $v->pivot->reservation_id === null ? null : (int) $v->pivot->reservation_id])->all(), 'reservation_ids' => $this->vehicles->pluck('pivot.reservation_id')->filter()->map(fn ($id) => (int) $id)->values()->all()];
+        }
+
+        if ($this->resource instanceof Invoice) {
+            $data += $this->resource->balances() + ['customer_name' => $this->customer?->name ?? $this->custom_customer_name, 'lines' => $this->lines->toArray(), 'payments' => $this->payments->toArray(), 'refunds' => $this->refunds->toArray()];
+        }
+        if ($this->resource instanceof JournalEntry) {
+            $data['lines'] = $this->lines->map(fn ($line) => ['account_code' => $line->account->code, 'account_name' => $line->account->name, 'debit_minor' => $line->debit_minor, 'credit_minor' => $line->credit_minor])->all();
         }
 
         return $data;

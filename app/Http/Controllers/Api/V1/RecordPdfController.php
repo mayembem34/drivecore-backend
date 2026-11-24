@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\RecordResource;
+use App\Models\Invoice;
 use App\Models\Quotation;
 use App\Models\Rental;
 use App\Models\Reservation;
@@ -20,12 +21,12 @@ class RecordPdfController extends Controller
     public function __invoke(Request $request, string $domain, int $id): Response
     {
         $model = match ($domain) {
-            'quotations' => Quotation::class,'reservations' => Reservation::class,'rentals' => Rental::class
+            'invoices' => Invoice::class, 'quotations' => Quotation::class,'reservations' => Reservation::class,'rentals' => Rental::class
         };
         $record = $domain === 'rentals' ? OperationalAccess::rentals($request->user())->findOrFail($id) : CompanyAccess::record($request->user(), $model, $id);
         Gate::authorize('view', $record);
         $record->load(match ($domain) {
-            'quotations' => ['customer', 'vehicles', 'decider'],'reservations' => ['customer', 'vehicle', 'rental'],'rentals' => ['reservation.customer', 'vehicle', 'driver']
+            'invoices' => ['customer', 'lines', 'payments', 'refunds'], 'quotations' => ['customer', 'vehicles', 'decider'],'reservations' => ['customer', 'vehicle', 'rental'],'rentals' => ['reservation.customer', 'vehicle', 'driver', 'invoice']
         });
         $options = new Options;
         $options->set('isRemoteEnabled', false);

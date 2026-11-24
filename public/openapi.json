@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "DriveCore Backend API",
-    "version": "0.4.0",
-    "description": "DriveCore operational API through M7: scoped reservations/rentals/documents, driver assignment, extensions, quotations, discount approvals, company financial settings and private server PDF exports. Invoice/payment/accounting workflows and later milestones are not implemented in this version."
+    "version": "0.5.0",
+    "description": "DriveCore API through M8: operations, quotations, private PDFs, invoices, payments, refunds, expenses, receivables ageing and scoped double-entry ledger. Later milestone modules are not implemented."
   },
   "servers": [
     {
@@ -5302,6 +5302,1122 @@
       ],
       "get": {
         "summary": "Private authoritative PDF; matching view permission or assigned rental driver",
+        "responses": {
+          "200": {
+            "description": "Private PDF; nosniff and no-store headers",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "State or vehicle availability conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "download",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Use attachment disposition instead of inline"
+          }
+        ]
+      }
+    },
+    "/api/v1/invoices": {
+      "get": {
+        "summary": "List scoped invoices with live paid/refunded/net-paid/outstanding balances; invoices.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "rental_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ageing_bucket",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create draft: either CRM customer_id OR custom customer name/details; invoices.manage",
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "branch_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "customer_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "custom_customer_name": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "custom_customer_email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "custom_customer_phone": {
+                    "type": "string",
+                    "maxLength": 50
+                  },
+                  "lines": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "description",
+                        "quantity",
+                        "unit_price_minor"
+                      ],
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "maxLength": 255
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000000
+                        },
+                        "unit_price_minor": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000000000
+                        }
+                      }
+                    }
+                  },
+                  "discount_pct": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "due_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "branch_id",
+                  "lines",
+                  "due_at"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "summary": "Read invoice, lines, payments, refunds and balances; invoices.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit draft only, replacing lines and recalculating totals; invoices.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "custom_customer_name": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "custom_customer_email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "custom_customer_phone": {
+                    "type": "string",
+                    "maxLength": 50
+                  },
+                  "lines": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "description",
+                        "quantity",
+                        "unit_price_minor"
+                      ],
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "maxLength": 255
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000000
+                        },
+                        "unit_price_minor": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000000000
+                        }
+                      }
+                    }
+                  },
+                  "discount_pct": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "due_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "lines"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{id}/issue": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "issue invoice atomically with balanced journal; invoices.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{id}/void": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "void invoice atomically with balanced journal; invoices.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{id}/payments": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "Record payments under invoice row lock; payments.manage. Reject overpayment or over-refund.",
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount_minor": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000000
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "cash",
+                      "card",
+                      "bank_transfer",
+                      "mobile_money"
+                    ]
+                  },
+                  "reference": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "paid_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "amount_minor",
+                  "method",
+                  "reference"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments": {
+      "get": {
+        "summary": "List scoped payments; invoices.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "invoice_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/invoices/{id}/refunds": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "Record refunds under invoice row lock; payments.manage. Reject overpayment or over-refund.",
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount_minor": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000000
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "refunded_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "amount_minor",
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/refunds": {
+      "get": {
+        "summary": "List scoped refunds; invoices.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "invoice_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/invoices/ageing": {
+      "get": {
+        "summary": "Five-bucket receivables ageing and top customer exposures; invoices.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/expenses": {
+      "get": {
+        "summary": "List immutable scoped expenses; expenses.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "vehicle_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Record expense and balanced journal atomically; expenses.manage",
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "integer"
+                  },
+                  "branch_id": {
+                    "type": "integer"
+                  },
+                  "vehicle_id": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "maintenance",
+                      "fuel",
+                      "insurance",
+                      "tolls_parking",
+                      "general"
+                    ]
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "amount_minor": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000000
+                  },
+                  "incurred_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "branch_id",
+                  "category",
+                  "description",
+                  "amount_minor",
+                  "incurred_at"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gl/accounts": {
+      "get": {
+        "summary": "Chart of accounts, scoped trial balance, total debits/credits and is_balanced; gl.view (not viewer, operations or driver)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/gl/journal-entries": {
+      "get": {
+        "summary": "Immutable journals with account names/codes and debit/credit lines; gl.view (not viewer, operations or driver)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside scope or not found"
+          },
+          "409": {
+            "description": "Record state conflict"
+          },
+          "422": {
+            "description": "Invalid input or insufficient balance"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "account_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/invoices/{id}/pdf": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "summary": "Private invoice PDF including lines and balances; invoices.view",
         "responses": {
           "200": {
             "description": "Private PDF; nosniff and no-store headers",
