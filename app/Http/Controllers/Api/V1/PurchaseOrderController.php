@@ -116,7 +116,7 @@ class PurchaseOrderController extends Controller
                 abort_unless(in_array($record->status, ['draft', 'submitted', 'approved'], true), 409);
                 $record->update(['status' => 'cancelled']);
             }
-            RecordAudit::write($request->user(),'purchase_order.'.$action,$record);
+            RecordAudit::write($request->user(), 'purchase_order.'.$action, $record);
 
             return $this->resource($record);
         }, 3);
