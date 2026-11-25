@@ -24962,8 +24962,12 @@
             "minimum": 1
           },
           "customer_id": {
-            "type": "integer",
-            "minimum": 1
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "Null for custom/walk-in invoices without a CRM customer."
           },
           "credit_note_number": {
             "type": "string",
@@ -27689,6 +27693,7 @@
     "mail": "Configure FRONTEND_URL, MAIL_* and a working queue worker. Invitation tokens in queued notifications are encrypted.",
     "roles": "The catalog has 10 exact SRS roles plus driver and 4 legacy aliases. Existing multi-company users retain compatible global roles; platform administration is required for incompatible global access changes.",
     "approval": "No self approval. Configured SRS approver roles apply. Accepted decisions retain exact values, actor, notes and time; threshold-gated mutations consume decisions once.",
-    "deployment": "Manual deployment remains separate from merge."
+    "deployment": "Manual deployment remains separate from merge.",
+    "credit_permissions": "Credit-control staff can hold/release accounts; credit limit and payment term writes require invoices.manage."
   }
 }

@@ -74,7 +74,7 @@ return new class extends Migration
             $table->foreignId('company_id')->constrained()->cascadeOnDelete();
             $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
             $table->foreignId('invoice_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('customer_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('customer_id')->nullable()->constrained()->cascadeOnDelete();
             $table->string('credit_note_number', 48);
             $table->unsignedBigInteger('subtotal_minor');
             $table->unsignedBigInteger('vat_minor')->default(0);

@@ -24,6 +24,7 @@ class CreditController extends Controller
 {
     public function update(Request $r, int $id): RecordResource
     {
+        abort_if($r->hasAny(['credit_limit_minor', 'payment_terms_days']) && ! $r->user()->can('invoices.manage'), 403, 'Finance permission is required to edit credit limits or payment terms.');
         $d = $r->validate(['approval_request_id' => ['nullable', 'integer', 'min:1'], 'credit_limit_minor' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:1000000000000'], 'payment_terms_days' => ['sometimes', 'integer', 'between:0,3650'], 'is_on_credit_hold' => ['sometimes', 'boolean'], 'credit_hold_reason' => ['nullable', 'required_if:is_on_credit_hold,true', 'string', 'max:255']]);
         CompanyAccess::record($r->user(), Customer::class, $id);
 

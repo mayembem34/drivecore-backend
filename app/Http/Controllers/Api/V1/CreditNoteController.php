@@ -33,7 +33,7 @@ class CreditNoteController extends Controller
 
         return DB::transaction(function () use ($r, $id, $d, $journal): RecordResource {
             $invoice = Invoice::lockForUpdate()->findOrFail($id);
-            abort_unless($invoice->status === 'issued' && $invoice->customer_id !== null, 409);
+            abort_unless($invoice->status === 'issued', 409);
             $credited = (int) CreditNote::where('invoice_id', $id)->whereIn('status', ['posted', 'pending_approval'])->sum('total_minor');
             if ($d['total_minor'] > $invoice->total_minor - $credited) {
                 throw ValidationException::withMessages(['total_minor' => 'Credit exceeds the remaining creditable amount.']);

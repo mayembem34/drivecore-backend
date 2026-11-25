@@ -105,4 +105,13 @@ class MilestoneSixteenTest extends TestCase
         $this->postJson('/api/v1/users/'.$admin->id.'/reset-two-factor', ['company_id' => $c->id])->assertConflict();
         $this->assertDatabaseHas('audit_events', ['subject_id' => $target->id, 'action' => 'security.two_factor_reset']);
     }
+
+    public function test_credit_control_can_place_holds_but_cannot_edit_financial_credit_terms(): void
+    {
+        [$u,$c,$b] = $this->workspace('credit-control-manager');
+        $customer = Customer::factory()->create(['company_id' => $c->id, 'branch_id' => $b->id]);
+        $this->patchJson('/api/v1/customers/'.$customer->id.'/credit', ['credit_limit_minor' => 1000])->assertForbidden();
+        $this->patchJson('/api/v1/customers/'.$customer->id.'/credit', ['payment_terms_days' => 90])->assertForbidden();
+        $this->patchJson('/api/v1/customers/'.$customer->id.'/credit', ['is_on_credit_hold' => true, 'credit_hold_reason' => 'Collection review'])->assertOk()->assertJsonPath('data.is_on_credit_hold', true);
+    }
 }

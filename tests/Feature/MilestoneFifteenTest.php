@@ -126,4 +126,12 @@ class MilestoneFifteenTest extends TestCase
         $this->assertDatabaseCount('bank_transactions', 2);
         $this->assertSame(1, BankTransaction::where('match_status', 'matched')->count());
     }
+
+    public function test_credit_notes_support_issued_custom_customer_invoices(): void
+    {
+        [$u,$c,$b] = $this->workspace();
+        $invoice = Invoice::create(['company_id' => $c->id, 'branch_id' => $b->id, 'created_by' => $u->id, 'custom_customer_name' => 'Walk-in', 'invoice_number' => 'WALKIN-CREDIT', 'status' => 'issued', 'issued_at' => now(), 'due_at' => now(), 'total_minor' => 1000]);
+        $this->postJson('/api/v1/invoices/'.$invoice->id.'/credit-notes', ['total_minor' => 200, 'reason' => 'Corrected charge'])->assertCreated()->assertJsonPath('data.customer_id', null);
+        $this->getJson('/api/v1/invoices/'.$invoice->id)->assertOk()->assertJsonPath('data.outstanding_minor', 800);
+    }
 }

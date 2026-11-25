@@ -8,6 +8,9 @@ use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Invoice;
+use App\Models\PurchaseOrder;
+use App\Models\Quotation;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Vehicle;
 use Database\Seeders\RolePermissionSeeder;
@@ -86,5 +89,24 @@ class MilestoneFourteenTest extends TestCase
         $this->patchJson('/api/v1/customers/'.$customer->id.'/credit', ['credit_limit_minor' => 1000, 'approval_request_id' => $id])->assertOk()->assertJsonPath('data.credit_limit_minor', 1000);
         $this->patchJson('/api/v1/customers/'.$customer->id.'/credit', ['credit_limit_minor' => 1000, 'approval_request_id' => $id])->assertConflict();
         $this->assertNotNull(ApprovalRequest::findOrFail($id)->applied_at);
+    }
+
+    public function test_existing_pending_commercial_approvals_are_backfilled_once_and_remain_actionable(): void
+    {
+        [$u,$c,$b] = $this->workspace();
+        $customer = Customer::factory()->create(['company_id' => $c->id, 'branch_id' => $b->id]);
+        $quote = Quotation::create(['company_id' => $c->id, 'branch_id' => $b->id, 'customer_id' => $customer->id, 'created_by' => $u->id, 'starts_at' => now(), 'ends_at' => now()->addDay(), 'rental_days' => 1, 'status' => 'pending_approval', 'discount_pct' => 10, 'discount_status' => 'pending', 'subtotal_minor' => 1000, 'discount_minor' => 100, 'vat_rate_pct' => 0, 'vat_minor' => 0, 'total_minor' => 900]);
+        $supplier = Supplier::create(['company_id' => $c->id, 'name' => 'Legacy vendor']);
+        $po = PurchaseOrder::create(['company_id' => $c->id, 'branch_id' => $b->id, 'supplier_id' => $supplier->id, 'created_by' => $u->id, 'po_number' => 'LEGACY-PENDING', 'status' => 'submitted', 'total_minor' => 500]);
+        $migration = require glob(database_path('migrations/*backfill_open_commercial_approval_requests.php'))[0];
+        $migration->up();
+        $migration->up();
+        $this->assertDatabaseCount('approval_requests', 2);
+        $other = User::factory()->create();
+        $other->assignRole('company-admin');
+        $other->companies()->attach($c->id);
+        Sanctum::actingAs($other);
+        $this->postJson('/api/v1/quotations/'.$quote->id.'/approve-discount')->assertOk()->assertJsonPath('data.status', 'approved');
+        $this->postJson('/api/v1/purchase-orders/'.$po->id.'/approve')->assertOk()->assertJsonPath('data.status', 'approved');
     }
 }
