@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Http\Controllers\Api\V1\InvoiceController;
+use App\Models\CreditNote;
 use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\Invoice;
@@ -43,11 +44,11 @@ final class RollupQuery
             $ar = Invoice::whereColumn('invoices.customer_id', 'customers.id')->selectRaw('COALESCE(SUM('.InvoiceController::OPEN.'),0)');
             $q->selectSub($paid, 'payments_minor')->selectSub($refund, 'refunds_minor')->selectSub($invoiced, 'total_invoiced_minor')->selectSub($ar, 'open_ar_minor');
         } else {
-            $q->selectRaw('NULL AS payments_minor,NULL AS refunds_minor,NULL AS total_invoiced_minor,NULL AS open_ar_minor');
+            $q->selectRaw('CAST(NULL AS BIGINT) AS payments_minor,CAST(NULL AS BIGINT) AS refunds_minor,CAST(NULL AS BIGINT) AS total_invoiced_minor,CAST(NULL AS BIGINT) AS open_ar_minor');
         }
         $outer = Customer::query()->fromSub($q, 'customers')->select('customers.*');
         $spent = 'CASE WHEN payments_minor-refunds_minor>0 THEN payments_minor-refunds_minor ELSE 0 END';
-        $outer->selectRaw($r->user()->can('invoices.view') ? $spent.' AS total_spent_minor' : 'NULL AS total_spent_minor');
+        $outer->selectRaw($r->user()->can('invoices.view') ? $spent.' AS total_spent_minor' : 'CAST(NULL AS BIGINT) AS total_spent_minor');
         $r->validate(['min_spend_minor' => ['sometimes', 'integer', 'min:0'], 'max_spend_minor' => ['sometimes', 'integer', 'min:0'], 'has_open_ar' => ['sometimes', 'boolean']]);
         foreach (['min_spend_minor' => '>=', 'max_spend_minor' => '<='] as $field => $op) {
             if ($r->filled($field)) {
@@ -85,13 +86,13 @@ final class RollupQuery
         $q->selectSub($last, 'last_used_at');
         if ($r->user()->can('invoices.view')) {
             $invoices = Invoice::where('status', 'issued')->whereIn('rental_id', Rental::whereColumn('rentals.vehicle_id', 'vehicles.id')->select('id'));
-            $q->selectSub(self::period(clone $invoices, $r, 'issued_at')->selectRaw('COALESCE(SUM(total_minor),0)'), 'invoiced_minor')->selectSub(self::period(Refund::whereIn('invoice_id', (clone $invoices)->select('invoices.id')), $r, 'refunded_at')->selectRaw('COALESCE(SUM(amount_minor),0)'), 'refunded_minor')->selectSub(self::period(Expense::whereColumn('expenses.vehicle_id', 'vehicles.id'), $r, 'incurred_at')->selectRaw('COALESCE(SUM(amount_minor),0)'), 'expense_minor');
+            $q->selectSub(self::period(clone $invoices, $r, 'issued_at')->selectRaw('COALESCE(SUM(total_minor),0)'), 'invoiced_minor')->selectSub(self::period(Refund::whereIn('invoice_id', (clone $invoices)->select('invoices.id')), $r, 'refunded_at')->selectRaw('COALESCE(SUM(amount_minor),0)'), 'refunded_minor')->selectSub(self::period(CreditNote::where('status', 'posted')->whereIn('invoice_id', (clone $invoices)->select('invoices.id')), $r, 'posted_at')->selectRaw('COALESCE(SUM(total_minor),0)'), 'credited_minor')->selectSub(self::period(Expense::whereColumn('expenses.vehicle_id', 'vehicles.id'), $r, 'incurred_at')->selectRaw('COALESCE(SUM(amount_minor),0)'), 'expense_minor');
         } else {
-            $q->selectRaw('NULL AS invoiced_minor,NULL AS refunded_minor,NULL AS expense_minor');
+            $q->selectRaw('CAST(NULL AS BIGINT) AS invoiced_minor,CAST(NULL AS BIGINT) AS refunded_minor,CAST(NULL AS BIGINT) AS credited_minor,CAST(NULL AS BIGINT) AS expense_minor');
         }
         $out = Vehicle::query()->fromSub($q, 'vehicles')->select('vehicles.*');
         $idle = $driver === 'pgsql' ? 'GREATEST(0,FLOOR(EXTRACT(EPOCH FROM (CAST(? AS TIMESTAMP)-COALESCE(last_used_at,created_at)))/86400))' : 'MAX(0,CAST(julianday(?)-julianday(COALESCE(last_used_at,created_at)) AS INTEGER))';
-        $out->selectRaw($idle.' AS idle_days', [now()])->selectRaw('invoiced_minor-refunded_minor AS revenue_minor,invoiced_minor-refunded_minor-expense_minor AS net_roi_minor');
+        $out->selectRaw($idle.' AS idle_days', [now()])->selectRaw('invoiced_minor-refunded_minor-credited_minor AS revenue_minor,invoiced_minor-refunded_minor-credited_minor-expense_minor AS net_roi_minor');
 
         return Vehicle::query()->fromSub($out, 'vehicles')->select('vehicles.*')->with('fixedAsset');
     }

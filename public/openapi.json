@@ -5234,7 +5234,19 @@
         "summary": "Read financial settings; companies.view",
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Scoped company settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CompanySettings"
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthenticated"
@@ -5257,7 +5269,19 @@
         "summary": "Update settings; settings.manage and whole-company membership",
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Scoped company settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CompanySettings"
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthenticated"
@@ -5282,6 +5306,28 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "require_inspection_photos": {
+                    "type": "boolean"
+                  },
+                  "distance_unit": {
+                    "type": "string",
+                    "maxLength": 8
+                  },
+                  "volume_unit": {
+                    "type": "string",
+                    "maxLength": 8
+                  },
+                  "fuel_efficiency_unit": {
+                    "type": "string",
+                    "maxLength": 16
+                  },
+                  "weight_unit": {
+                    "type": "string",
+                    "maxLength": 8
+                  },
+                  "require_2fa_for_privileged": {
+                    "type": "boolean"
+                  },
                   "vat_rate_pct": {
                     "type": "number",
                     "minimum": 0,
@@ -5292,11 +5338,7 @@
                     "minimum": 0,
                     "maximum": 100
                   }
-                },
-                "required": [
-                  "vat_rate_pct",
-                  "discount_approval_threshold_pct"
-                ]
+                }
               }
             }
           }
@@ -6731,6 +6773,42 @@
                       "null"
                     ],
                     "maxLength": 10000
+                  },
+                  "work_order_type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "complaint": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "diagnosis": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "technician_name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "estimate_minor": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "schedule_id": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
                   }
                 },
                 "required": [
@@ -23309,6 +23387,12 @@
                 "minimum": 0
               }
             }
+          },
+          "rate_card_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         }
       },
@@ -24049,6 +24133,23 @@
           },
           "require_2fa_for_privileged": {
             "type": "boolean"
+          },
+          "company_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "currency": {
+            "type": "string"
+          },
+          "vat_rate_pct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "discount_approval_threshold_pct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
           }
         }
       },
@@ -25419,6 +25520,141 @@
               "null"
             ],
             "maxLength": 80
+          },
+          "rate_card_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "company_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "branch_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "customer_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "starts_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "rental_days": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "discount_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "discount_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "discount_decided_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "discount_decided_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "discount_decision_notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subtotal_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "discount_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "vat_rate_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "vat_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "total_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "converted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "readOnly": true
           }
         }
       },
@@ -27022,6 +27258,428 @@
         "required": [
           "fuel_level_pct"
         ]
+      },
+      "Invoice": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "branch_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "customer_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "custom_customer_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "custom_customer_email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "custom_customer_phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rental_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "invoice_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "issued_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "voided_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "discount_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "subtotal_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "discount_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "vat_rate_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "vat_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "total_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "readOnly": true
+          }
+        }
+      },
+      "WorkOrder": {
+        "type": "object",
+        "properties": {
+          "assigned_to_user_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "work_order_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "complaint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "diagnosis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "technician_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "estimate_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "schedule_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "release_passed": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "release_notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "company_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "branch_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "vehicle_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "labour_cost_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "parts_cost_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "completion_notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expense_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "readOnly": true
+          }
+        }
+      },
+      "Part": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "company_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "branch_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "sku": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit_cost_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "min_stock": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "readOnly": true
+          }
+        }
+      },
+      "PurchaseOrder": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "branch_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "supplier_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "created_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approved_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "po_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "total_minor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "submitted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "approved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "received_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "readOnly": true
+          }
+        }
       }
     }
   },

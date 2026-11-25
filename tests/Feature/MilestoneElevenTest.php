@@ -80,6 +80,8 @@ class MilestoneElevenTest extends TestCase
         [$u,$c,$b] = $this->workspace();
         Vehicle::factory()->create(['company_id' => $c->id, 'branch_id' => $b->id, 'daily_rate_minor' => 0, 'functions' => ['chauffeur', 'delivery'], 'created_at' => now()->subDays(20)]);
         $this->getJson('/api/v1/stats/vehicles?company_id='.$c->id.'&functions=chauffeur,delivery&unpriced_only=1&sort=idle_days')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.stats.idle_days', 20)->assertJsonPath('meta.summary.unpriced_count', 1);
+        $u->syncRoles('operations');
+        $this->getJson('/api/v1/stats/vehicles?company_id='.$c->id)->assertOk()->assertJsonPath('data.0.stats.revenue_minor', null)->assertJsonPath('meta.summary.total_net_roi_minor', null);
         Branch::factory()->create(['company_id' => $c->id]);
         $u->companies()->updateExistingPivot($c->id, ['branch_id' => $b->id]);
         $this->getJson('/api/v1/stats/branches?company_id='.$c->id)->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.branch_id', $b->id);

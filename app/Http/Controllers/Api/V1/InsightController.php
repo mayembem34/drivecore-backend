@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\AuditEvent;
 use App\Models\CollectionNote;
+use App\Models\CreditNote;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Expense;
@@ -42,12 +43,15 @@ class InsightController extends Controller
         $invoices = $this->query($request, Invoice::class, 'issued_at')->where('status', 'issued');
         $invoiced = (int) (clone $invoices)->sum('total_minor');
         $vat = (int) (clone $invoices)->sum('vat_minor');
+        $credits = $this->query($request, CreditNote::class, 'posted_at')->where('status', 'posted');
+        $credited = (int) (clone $credits)->sum('total_minor');
+        $vat -= (int) (clone $credits)->sum('vat_minor');
         $receipts = (int) $this->query($request, Payment::class, 'paid_at')->sum('amount_minor');
         $refunds = (int) $this->query($request, Refund::class, 'refunded_at')->sum('amount_minor');
         $expenses = (int) $this->query($request, Expense::class, 'incurred_at')->sum('amount_minor');
         $ar = (int) $this->query($request, Invoice::class)->where('status', 'issued')->selectRaw('COALESCE(SUM('.InvoiceController::OPEN.'),0) AS aggregate')->value('aggregate');
 
-        return ['invoiced_minor' => $invoiced, 'vat_minor' => $vat, 'receipts_minor' => $receipts, 'refunds_minor' => $refunds, 'expenses_minor' => $expenses, 'outstanding_ar_minor' => $ar, 'net_position_minor' => $receipts - $refunds - $expenses];
+        return ['credit_notes_minor' => $credited, 'invoiced_minor' => $invoiced, 'vat_minor' => $vat, 'receipts_minor' => $receipts, 'refunds_minor' => $refunds, 'expenses_minor' => $expenses, 'outstanding_ar_minor' => $ar, 'net_position_minor' => $receipts - $refunds - $expenses];
     }
 
     public function dashboard(Request $request): JsonResponse
@@ -69,7 +73,7 @@ class InsightController extends Controller
         $finance = null;
         if ($request->user()->can('invoices.view')) {
             $f = $this->financialData($request);
-            $finance = ['revenue_minor' => $f['invoiced_minor'] - $f['refunds_minor'], 'vat_minor' => $f['vat_minor'], 'receipts_minor' => $f['receipts_minor'], 'expenses_minor' => $f['expenses_minor'], 'outstanding_ar_minor' => $f['outstanding_ar_minor'], 'net_position_minor' => $f['net_position_minor']];
+            $finance = ['revenue_minor' => $f['invoiced_minor'] - $f['refunds_minor'] - $f['credit_notes_minor'], 'vat_minor' => $f['vat_minor'], 'receipts_minor' => $f['receipts_minor'], 'expenses_minor' => $f['expenses_minor'], 'outstanding_ar_minor' => $f['outstanding_ar_minor'], 'net_position_minor' => $f['net_position_minor']];
             $pipeline['issued_invoices'] = $this->query($request, Invoice::class, 'issued_at')->where('status', 'issued')->count();
             $approvals['overdue_invoices'] = $this->query($request, Invoice::class)->where('status', 'issued')->where('due_at', '<', now())->whereRaw(InvoiceController::OPEN.' > 0')->count();
         }
@@ -145,8 +149,8 @@ class InsightController extends Controller
             $maintenance = null;
             if ($finance) {
                 $revenue = 0;
-                foreach (InsightQuery::period(Invoice::where('status', 'issued')->whereIn('rental_id', Rental::where('vehicle_id', $vehicle->id)->select('id')), $request, 'issued_at')->with('refunds')->lazyById(100) as $invoice) {
-                    $revenue += $invoice->total_minor - (int) $invoice->refunds->sum('amount_minor');
+                foreach (InsightQuery::period(Invoice::where('status', 'issued')->whereIn('rental_id', Rental::where('vehicle_id', $vehicle->id)->select('id')), $request, 'issued_at')->with(['refunds', 'creditNotes'])->lazyById(100) as $invoice) {
+                    $revenue += $invoice->total_minor - (int) $invoice->refunds->sum('amount_minor') - (int) $invoice->creditNotes->where('status', 'posted')->sum('total_minor');
                 } $maintenance = (int) (clone $orders)->where('status', 'completed')->selectRaw('COALESCE(SUM(labour_cost_minor+parts_cost_minor),0) AS aggregate')->value('aggregate');
             }
             $rows[] = ['vehicle_id' => $vehicle->id, 'registration' => $vehicle->registration, 'make_model' => trim($vehicle->make.' '.$vehicle->model), 'status' => $vehicle->status, 'rental_count' => $rentals->count(), 'work_order_count' => $orders->count(), 'downtime_hours' => round($downtime, 2), 'revenue_minor' => $revenue, 'maintenance_cost_minor' => $maintenance, 'net_roi_minor' => $finance ? $revenue - $maintenance : null];

@@ -69,6 +69,7 @@ class MilestoneFifteenTest extends TestCase
         $i = Invoice::create(['company_id' => $c->id, 'branch_id' => $b->id, 'customer_id' => $customer->id, 'created_by' => $u->id, 'invoice_number' => 'CREDIT', 'status' => 'issued', 'issued_at' => now(), 'due_at' => now(), 'total_minor' => 1200, 'vat_minor' => 200]);
         $this->postJson('/api/v1/invoices/'.$i->id.'/credit-notes', ['total_minor' => 300, 'reason' => 'Adjustment'])->assertCreated()->assertJsonPath('data.vat_minor', 50);
         $this->postJson('/api/v1/invoices/'.$i->id.'/credit-notes', ['total_minor' => 1000, 'reason' => 'Too much'])->assertUnprocessable();
+        $this->getJson('/api/v1/dashboard/summary?company_id='.$c->id)->assertOk()->assertJsonPath('data.finance.revenue_minor', 900)->assertJsonPath('data.finance.vat_minor', 150);
         $this->getJson('/api/v1/invoices/'.$i->id)->assertOk()->assertJsonPath('data.outstanding_minor', 900);
         $this->getJson('/api/v1/customers/'.$customer->id.'/statement')->assertOk()->assertJsonPath('data.closing_balance_minor', 900);
         $this->getJson('/api/v1/invoices/ageing?company_id='.$c->id)->assertOk()->assertJsonPath('data.total_outstanding_minor', 900);
