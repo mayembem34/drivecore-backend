@@ -69,7 +69,7 @@ class FinanceController extends Controller
     public function journals(Request $request): AnonymousResourceCollection
     {
         $data = $request->validate(['account_code' => ['sometimes', 'string', 'max:20']]);
-        $query = DirectoryQuery::apply($request, CompanyAccess::scope(JournalEntry::query(), $request->user()), ['reference', 'memo'], ['source_type' => ['invoice', 'payment', 'refund', 'expense', 'work_order', 'purchase_order', 'stock_adjustment']]);
+        $query = DirectoryQuery::apply($request, CompanyAccess::scope(JournalEntry::query(), $request->user()), ['reference', 'memo'], ['source_type' => ['invoice', 'payment', 'refund', 'expense', 'work_order', 'purchase_order', 'stock_adjustment', 'supplier_invoice', 'supplier_payment', 'credit_note', 'bank_opening', 'bank_fee', 'fixed_asset', 'depreciation', 'asset_disposal', 'rental_deposit']]);
         if (isset($data['account_code'])) {
             $query->whereHas('lines.account', fn ($q) => $q->where('code', $data['account_code']));
         }

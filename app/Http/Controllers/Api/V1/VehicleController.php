@@ -9,7 +9,6 @@ use App\Http\Resources\RecordResource;
 use App\Models\Reservation;
 use App\Models\Vehicle;
 use App\Support\CompanyAccess;
-use App\Support\DirectoryQuery;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +21,7 @@ class VehicleController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        return RecordResource::collection(DirectoryQuery::apply($request, CompanyAccess::scope(Vehicle::query(), $request->user()), ['registration', 'make', 'model'], ['status' => ['available', 'rented', 'maintenance', 'damaged']], sortColumns: ['registration' => 'registration', 'make' => 'make', 'daily_rate_minor' => 'daily_rate_minor', 'odometer' => 'odometer', 'status' => 'status'])->orderBy('id')->paginate(25)->withQueryString());
+        return (new StatsController)->vehicles($request);
     }
 
     public function show(Request $request, int $vehicle): RecordResource

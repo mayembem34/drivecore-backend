@@ -33,16 +33,16 @@ class RentalController extends Controller
     public function store(Request $request, TransitionRental $transition): RecordResource
     {
         Gate::authorize('rentals.manage');
-        $data = $request->validate(['reservation_id' => ['required', 'integer', 'min:1'], 'driver_user_id' => ['sometimes', 'nullable', 'integer', 'min:1']]);
+        $data = $request->validate(['rate_card_id' => ['nullable', 'integer', 'min:1'], 'reservation_id' => ['required', 'integer', 'min:1'], 'driver_user_id' => ['sometimes', 'nullable', 'integer', 'min:1']]);
 
-        return new RecordResource($transition->create($request->user(), $data['reservation_id'], $data['driver_user_id'] ?? null)->load(['vehicle', 'reservation.customer', 'driver', 'invoice']));
+        return new RecordResource($transition->create($request->user(), $data['reservation_id'], $data['driver_user_id'] ?? null, $data['rate_card_id'] ?? null)->load(['vehicle', 'reservation.customer', 'driver', 'invoice']));
     }
 
     public function transition(Request $request, int $rental, string $action, TransitionRental $transition): RecordResource
     {
         $visible = OperationalAccess::rentals($request->user(), 'manage')->findOrFail($rental);
         Gate::authorize('update', $visible);
-        $data = $request->validate(['extra_charge_minor' => ['sometimes', 'integer', 'min:0', 'max:100000000000000'], 'extra_charge_description' => [Rule::requiredIf((int) $request->input('extra_charge_minor', 0) > 0), 'nullable', 'string', 'max:255'], 'odometer' => ['required', 'integer', 'min:0'], 'notes' => ['required', 'string', 'max:10000'], 'vehicle_status' => [Rule::requiredIf($action === 'return'), Rule::in(['available', 'maintenance', 'damaged'])]]);
+        $data = $request->validate(['inspection' => ['sometimes', 'array'], 'extra_charge_minor' => ['sometimes', 'integer', 'min:0', 'max:100000000000000'], 'extra_charge_description' => [Rule::requiredIf((int) $request->input('extra_charge_minor', 0) > 0), 'nullable', 'string', 'max:255'], 'odometer' => ['required', 'integer', 'min:0'], 'notes' => ['required', 'string', 'max:10000'], 'vehicle_status' => [Rule::requiredIf($action === 'return'), Rule::in(['available', 'maintenance', 'damaged'])]]);
 
         return new RecordResource($transition->handle($request->user(), $rental, $action, $data)->load(['vehicle', 'reservation.customer', 'driver', 'invoice']));
     }

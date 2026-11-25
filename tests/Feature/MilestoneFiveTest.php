@@ -104,7 +104,7 @@ class MilestoneFiveTest extends TestCase
         $this->getJson('/api/v1/users?company_id='.$company->id.'&branch_id='.$branch->id.'&role=driver&is_active=1&q=fleet&page=2')->assertOk()->assertJsonCount(2, 'data')->assertJsonPath('meta.total', 27)->assertJsonMissingPath('data.0.companies')->assertJsonMissingPath('data.0.password');
         $this->getJson('/api/v1/users?company_id='.$foreign->id)->assertNotFound();
         $this->getJson('/api/v1/users?company_id='.$company->id.'&is_active=invalid')->assertUnprocessable();
-        $this->getJson('/api/v1/roles?company_id='.$company->id)->assertOk()->assertJsonCount(4, 'data');
+        $this->getJson('/api/v1/roles?company_id='.$company->id)->assertOk()->assertJsonCount(15, 'data');
     }
 
     public function test_admin_can_update_user_membership_role_activation_and_revoke_tokens(): void

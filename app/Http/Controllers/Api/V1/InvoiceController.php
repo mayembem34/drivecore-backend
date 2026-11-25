@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Refund;
+use App\Support\ApprovalRules;
 use App\Support\CompanyAccess;
 use App\Support\DirectoryQuery;
 use Illuminate\Http\JsonResponse;
@@ -26,11 +27,13 @@ class InvoiceController extends Controller
 {
     public const PAID = '(SELECT COALESCE(SUM(amount_minor),0) FROM payments WHERE payments.invoice_id=invoices.id)';
 
-    public const OPEN = "CASE WHEN invoices.status='issued' THEN invoices.total_minor-".self::PAID.' ELSE 0 END';
+    public const CREDIT = "(SELECT COALESCE(SUM(total_minor),0) FROM credit_notes WHERE credit_notes.invoice_id=invoices.id AND credit_notes.status='posted')";
+
+    public const OPEN = "CASE WHEN invoices.status='issued' AND invoices.total_minor-".self::PAID.'-'.self::CREDIT.' > 0 THEN invoices.total_minor-'.self::PAID.'-'.self::CREDIT.' ELSE 0 END';
 
     private function resource(Invoice $record): RecordResource
     {
-        return new RecordResource($record->load(['lines', 'payments', 'refunds', 'customer']));
+        return new RecordResource($record->load(['lines', 'payments', 'refunds', 'creditNotes', 'customer']));
     }
 
     public function index(Request $request): AnonymousResourceCollection
@@ -39,7 +42,7 @@ class InvoiceController extends Controller
         $query = DirectoryQuery::apply($request, CompanyAccess::scope(Invoice::query(), $request->user())->select('invoices.*')->selectRaw(self::OPEN.' AS outstanding_minor'), ['invoice_number', 'custom_customer_name', 'customer:name'], integerFilters: ['customer_id', 'rental_id'], sortColumns: ['id' => 'id', 'customer_name' => Customer::select('name')->whereColumn('customers.id', 'invoices.customer_id')->limit(1), 'due_at' => 'due_at', 'total_minor' => 'total_minor', 'outstanding_minor' => 'outstanding_minor', 'status' => 'status', 'created_at' => 'created_at']);
         if ($request->filled('status')) {
             match ($request->input('status')) {
-                'paid' => $query->where('status', 'issued')->whereRaw(self::PAID.' >= total_minor'),'overdue' => $query->where('status', 'issued')->where('due_at', '<', now())->whereRaw(self::OPEN.' > 0'),default => $query->where('status', $request->input('status'))
+                'paid' => $query->where('status', 'issued')->whereRaw('('.self::PAID.'+'.self::CREDIT.') >= total_minor'),'overdue' => $query->where('status', 'issued')->where('due_at', '<', now())->whereRaw(self::OPEN.' > 0'),default => $query->where('status', $request->input('status'))
             };
         }
         if ($request->filled('ageing_bucket')) {
@@ -58,7 +61,7 @@ class InvoiceController extends Controller
             }
         }
 
-        return RecordResource::collection($query->with(['lines', 'payments', 'refunds', 'customer'])->orderByDesc('id')->paginate(25)->withQueryString());
+        return RecordResource::collection($query->with(['lines', 'payments', 'refunds', 'creditNotes', 'customer'])->orderByDesc('id')->paginate(25)->withQueryString());
     }
 
     public function show(Request $request, int $invoice): RecordResource
@@ -138,7 +141,7 @@ class InvoiceController extends Controller
                 }$record->update(['status' => 'issued', 'issued_at' => now()]);
                 $journal->handle($request->user(), $record->company_id, $record->branch_id, 'invoice', $record->id, [['1100', $record->total_minor, 0], ['4000', 0, $net], ['2100', 0, $record->vat_minor]], $record->invoice_number, 'Invoice issued');
             } else {
-                abort_if($record->status === 'void' || $record->payments()->exists(), 409);
+                abort_if($record->status === 'void' || $record->payments()->exists() || $record->creditNotes()->exists(), 409);
                 if ($record->status === 'issued') {
                     $journal->handle($request->user(), $record->company_id, $record->branch_id, 'invoice', $record->id, [['4000', $net, 0], ['2100', $record->vat_minor, 0], ['1100', 0, $record->total_minor]], $record->invoice_number, 'Invoice voided');
                 }$record->update(['status' => 'void', 'voided_at' => now()]);
@@ -152,7 +155,7 @@ class InvoiceController extends Controller
     public function settlement(Request $request, int $invoice, string $kind, PostJournal $journal): RecordResource
     {
         $refund = $kind === 'refunds';
-        $data = $request->validate(['amount_minor' => ['required', 'integer', 'min:1', 'max:100000000000000'], 'method' => [$refund ? 'sometimes' : 'required', Rule::in(['cash', 'card', 'bank_transfer', 'mobile_money'])], 'reference' => [$refund ? 'sometimes' : 'required', 'string', 'max:120'], 'reason' => [$refund ? 'required' : 'sometimes', 'string', 'max:500'], ($refund ? 'refunded_at' : 'paid_at') => ['sometimes', 'date']]);
+        $data = $request->validate(['approval_request_id' => ['nullable', 'integer', 'min:1'], 'amount_minor' => ['required', 'integer', 'min:1', 'max:100000000000000'], 'method' => [$refund ? 'sometimes' : 'required', Rule::in(['cash', 'card', 'bank_transfer', 'mobile_money'])], 'reference' => [$refund ? 'sometimes' : 'required', 'string', 'max:120'], 'reason' => [$refund ? 'required' : 'sometimes', 'string', 'max:500'], ($refund ? 'refunded_at' : 'paid_at') => ['sometimes', 'date']]);
         CompanyAccess::record($request->user(), Invoice::class, $invoice);
 
         return DB::transaction(function () use ($request, $invoice, $refund, $data, $journal): RecordResource {
@@ -160,9 +163,12 @@ class InvoiceController extends Controller
             Gate::authorize('view', $record);
             Gate::authorize('payments.manage');
             abort_unless($record->status === 'issued', 409);
-            $balance = $record->load(['payments', 'refunds'])->balances();
+            $balance = $record->load(['payments', 'refunds', 'creditNotes'])->balances();
             if ($data['amount_minor'] > $balance[$refund ? 'net_paid_minor' : 'outstanding_minor']) {
                 throw ValidationException::withMessages(['amount_minor' => 'Amount exceeds the available balance.']);
+            }
+            if ($refund) {
+                ApprovalRules::check($request->user(), $record, 'refund_writeoff', 'invoice', $data['amount_minor'], $data['approval_request_id'] ?? null);
             }
             $type = $refund ? 'refund' : 'payment';
             $fields = ['company_id' => $record->company_id, 'branch_id' => $record->branch_id, 'invoice_id' => $record->id, 'recorded_by' => $request->user()->id, 'amount_minor' => $data['amount_minor']];

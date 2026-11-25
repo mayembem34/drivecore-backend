@@ -61,9 +61,15 @@ class MilestoneNineTest extends TestCase
         $actor->syncRoles('operations');
         $this->postJson('/api/v1/purchase-orders/'.$po.'/approve')->assertForbidden();
         $actor->syncRoles('finance');
+        $this->postJson('/api/v1/purchase-orders/'.$po.'/approve')->assertForbidden();
+        $approver = User::factory()->create();
+        $approver->assignRole('finance');
+        $approver->companies()->attach($company->id);
+        Sanctum::actingAs($approver);
         $this->postJson('/api/v1/purchase-orders/'.$po.'/approve')->assertOk()->assertJsonPath('data.status', 'approved');
         $this->postJson('/api/v1/purchase-orders/'.$po.'/receive')->assertForbidden();
         $actor->syncRoles('operations');
+        Sanctum::actingAs($actor);
         $this->postJson('/api/v1/purchase-orders/'.$po.'/receive')->assertOk()->assertJsonPath('data.status', 'received');
         $this->postJson('/api/v1/purchase-orders/'.$po.'/receive')->assertConflict();
         $this->postJson('/api/v1/purchase-orders/'.$po.'/cancel')->assertConflict();

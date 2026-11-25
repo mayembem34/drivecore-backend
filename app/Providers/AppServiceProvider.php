@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\WorkOrder;
 use App\Policies\RecordPolicy;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -28,6 +29,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        ResetPassword::createUrlUsing(fn (User $user, string $token) => rtrim(config('app.frontend_url'), '/').'/reset-password?token='.urlencode($token).'&email='.urlencode($user->email));
+        Gate::define('users.administer', fn (User $user) => $user->can('users.manage') || $user->can('users.manage_non_privileged'));
+        Gate::define('work_orders.access', fn (User $user) => $user->can('work_orders.view') || $user->can('work_orders.view_assigned'));
+        Gate::define('work_orders.change', fn (User $user) => $user->can('work_orders.manage') || $user->can('work_orders.manage_assigned'));
         Gate::before(fn (User $user, string $ability) => $user->is_active && $user->is_platform_admin ? true : null);
         foreach ([WorkOrder::class, Part::class, PurchaseOrder::class, Supplier::class, Invoice::class, Quotation::class, Branch::class, Customer::class, Vehicle::class, Reservation::class, Rental::class, Document::class] as $model) {
             Gate::policy($model, RecordPolicy::class);

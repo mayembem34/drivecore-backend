@@ -11,7 +11,7 @@ class Company extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'currency', 'vat_rate_pct', 'discount_approval_threshold_pct'];
+    protected $fillable = ['require_2fa_for_privileged', 'require_inspection_photos', 'distance_unit', 'volume_unit', 'fuel_efficiency_unit', 'weight_unit', 'name', 'currency', 'vat_rate_pct', 'discount_approval_threshold_pct'];
 
     protected static function booted(): void
     {
@@ -25,6 +25,6 @@ class Company extends Model
 
     protected function casts(): array
     {
-        return ['vat_rate_pct' => 'float', 'discount_approval_threshold_pct' => 'float'];
+        return ['require_2fa_for_privileged' => 'boolean', 'require_inspection_photos' => 'boolean', 'vat_rate_pct' => 'float', 'discount_approval_threshold_pct' => 'float'];
     }
 }

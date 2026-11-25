@@ -106,6 +106,11 @@ class MilestoneSevenTest extends TestCase
         [$user, $company, $branch, $payload] = $this->setupQuote();
         $first = $this->postJson('/api/v1/quotations', $payload)->assertCreated()->json('data.id');
         $user->syncRoles('company-admin');
+        $this->postJson('/api/v1/quotations/'.$first.'/reject-discount')->assertForbidden();
+        $other = User::factory()->create();
+        $other->assignRole('company-admin');
+        $other->companies()->attach($company->id);
+        Sanctum::actingAs($other);
         $this->postJson('/api/v1/quotations/'.$first.'/reject-discount', ['notes' => 'Discount declined'])->assertOk()->assertJsonPath('data.status', 'rejected');
         $this->postJson('/api/v1/quotations/'.$first.'/convert')->assertConflict();
         $this->postJson('/api/v1/quotations/'.$first.'/approve-discount')->assertConflict();

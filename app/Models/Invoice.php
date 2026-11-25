@@ -35,11 +35,16 @@ class Invoice extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    public function creditNotes(): HasMany
+    {
+        return $this->hasMany(CreditNote::class);
+    }
+
     public function balances(): array
     {
         $paid = (int) $this->payments->sum('amount_minor');
         $refunded = (int) $this->refunds->sum('amount_minor');
-        $outstanding = $this->status === 'issued' ? max(0, $this->total_minor - $paid) : 0;
+        $outstanding = $this->status === 'issued' ? max(0, $this->total_minor - $paid - (int) $this->creditNotes->where('status', 'posted')->sum('total_minor')) : 0;
 
         return ['paid_minor' => $paid, 'refunded_minor' => $refunded, 'net_paid_minor' => $paid - $refunded, 'outstanding_minor' => $outstanding, 'is_overdue' => $outstanding > 0 && $this->due_at->isPast()];
     }

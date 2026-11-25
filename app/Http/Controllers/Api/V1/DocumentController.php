@@ -39,7 +39,7 @@ class DocumentController extends Controller
         try {
             return DB::transaction(function () use ($request, $data, $disk, $file, $path): RecordResource {
                 OperationalAccess::documentTarget($request->user(), $data, lock: true);
-                $document = Document::create(['entity_type' => $data['entity_type'] ?? null, 'entity_id' => $data['entity_id'] ?? null, 'expires_at' => $data['expires_at'] ?? null, 'company_id' => $data['company_id'], 'branch_id' => $data['branch_id'], 'uploaded_by' => $request->user()->id, 'disk' => $disk, 'path' => $path, 'original_name' => basename($file->getClientOriginalName()), 'mime_type' => $file->getMimeType(), 'size' => $file->getSize()])->refresh();
+                $document = Document::create(['category' => $data['category'] ?? null, 'entity_type' => $data['entity_type'] ?? null, 'entity_id' => $data['entity_id'] ?? null, 'expires_at' => $data['expires_at'] ?? null, 'company_id' => $data['company_id'], 'branch_id' => $data['branch_id'], 'uploaded_by' => $request->user()->id, 'disk' => $disk, 'path' => $path, 'original_name' => basename($file->getClientOriginalName()), 'mime_type' => $file->getMimeType(), 'size' => $file->getSize()])->refresh();
                 RecordAudit::write($request->user(), 'document.uploaded', $document);
 
                 return new RecordResource($document);

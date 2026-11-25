@@ -7,6 +7,7 @@ use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Support\CompanyAccess;
+use App\Support\CreditControl;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +23,8 @@ final class AllocateReservation
             CompanyAccess::branch($user, $data['company_id'], $data['branch_id']);
             $vehicle = CompanyAccess::scope(Vehicle::query(), $user)->where('company_id', $data['company_id'])->where('branch_id', $data['branch_id'])->lockForUpdate()->findOrFail($data['vehicle_id']);
             CompanyAccess::scope(Customer::query(), $user)->where('company_id', $data['company_id'])->where('branch_id', $data['branch_id'])->findOrFail($data['customer_id']);
+            CreditControl::assertCanBook($data['customer_id']);
+            abort_if(in_array($vehicle->status, ['accident', 'awaiting_inspection', 'awaiting_repair', 'sold', 'decommissioned'], true), 409, 'Vehicle cannot be booked.');
             if ($vehicle->status !== 'available') {
                 throw ValidationException::withMessages(['vehicle_id' => 'Vehicle is not available.']);
             }

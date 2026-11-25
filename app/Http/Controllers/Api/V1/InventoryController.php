@@ -40,7 +40,7 @@ class InventoryController extends Controller
         }
         $company = $part === null ? $request->input('company_id') : $record->company_id;
         $branch = $part === null ? $request->input('branch_id') : $record->branch_id;
-        $data = $request->validate(['company_id' => [$part === null ? 'required' : 'prohibited', 'integer', 'min:1'], 'branch_id' => [$part === null ? 'required' : 'prohibited', 'integer', 'min:1'], 'sku' => [$part === null ? 'required' : 'sometimes', 'string', 'max:64', Rule::unique('parts')->where('company_id', $company)->where('branch_id', $branch)->ignore($part)], 'name' => [$part === null ? 'required' : 'sometimes', 'string', 'max:255'], 'unit_cost_minor' => ['sometimes', 'integer', 'min:0', 'max:1000000000'], 'min_stock' => ['sometimes', 'integer', 'min:0', 'max:1000000000']]);
+        $data = $request->validate(['company_id' => [$part === null ? 'required' : 'prohibited', 'integer', 'min:1'], 'branch_id' => [$part === null ? 'required' : 'prohibited', 'integer', 'min:1'], 'location' => ['sometimes', 'nullable', 'string', 'max:120'], 'sku' => [$part === null ? 'required' : 'sometimes', 'string', 'max:64', Rule::unique('parts')->where('company_id', $company)->where('branch_id', $branch)->ignore($part)], 'name' => [$part === null ? 'required' : 'sometimes', 'string', 'max:255'], 'unit_cost_minor' => ['sometimes', 'integer', 'min:0', 'max:1000000000'], 'min_stock' => ['sometimes', 'integer', 'min:0', 'max:1000000000']]);
         CompanyAccess::branch($request->user(), (int) $company, (int) $branch);
         $record->fill($data)->save();
         RecordAudit::write($request->user(), $part === null ? 'part.created' : 'part.updated', $record);

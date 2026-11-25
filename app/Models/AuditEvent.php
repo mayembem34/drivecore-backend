@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AuditEvent extends Model
 {
-    protected $fillable = ['company_id', 'user_id', 'action', 'subject_type', 'subject_id', 'metadata'];
+    protected $fillable = ['branch_id', 'company_id', 'user_id', 'action', 'subject_type', 'subject_id', 'metadata'];
 
     public $timestamps = false;
 
