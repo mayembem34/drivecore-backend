@@ -2,12 +2,15 @@
 
 namespace App\Actions;
 
+use App\Models\Quotation;
 use App\Models\Rental;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Support\CompanyAccess;
+use App\Support\CreditControl;
 use App\Support\OperationalAccess;
+use App\Support\RatePricing;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -15,19 +18,22 @@ use Illuminate\Validation\ValidationException;
 
 final class TransitionRental
 {
-    public function create(User $user, int $reservationId, ?int $driverId = null): Rental
+    public function create(User $user, int $reservationId, ?int $driverId = null, ?int $rateCardId = null): Rental
     {
         Gate::forUser($user)->authorize('rentals.manage');
         $visible = CompanyAccess::record($user, Reservation::class, $reservationId);
 
-        return DB::transaction(function () use ($user, $visible, $driverId): Rental {
+        return DB::transaction(function () use ($user, $visible, $driverId, $rateCardId): Rental {
             Vehicle::whereKey($visible->vehicle_id)->lockForUpdate()->firstOrFail();
             $reservation = Reservation::lockForUpdate()->findOrFail($visible->id);
             CompanyAccess::branch($user, $reservation->company_id, $reservation->branch_id);
             abort_unless($reservation->status === 'confirmed' && $reservation->ends_at->isFuture(), 409, 'Reservation is not eligible for rental.');
             abort_if(Rental::where('reservation_id', $reservation->id)->exists(), 409, 'Rental already exists.');
             OperationalAccess::validateDriver($driverId, $reservation);
-            $rental = Rental::create(['driver_user_id' => $driverId, 'company_id' => $reservation->company_id, 'branch_id' => $reservation->branch_id, 'vehicle_id' => $reservation->vehicle_id, 'reservation_id' => $reservation->id, 'status' => 'draft']);
+            $quote = Quotation::whereHas('vehicles', fn ($q) => $q->where('quotation_vehicles.reservation_id', $reservation->id))->first();
+            $cardId = $rateCardId ?? $quote?->rate_card_id;
+            $card = $cardId ? RatePricing::card($user, $cardId, $reservation->company_id, $reservation->branch_id, $reservation->customer_id) : null;
+            $rental = Rental::create(['rate_card_snapshot' => $card?->only($card->getFillable()), 'rate_card_id' => $cardId, 'driver_user_id' => $driverId, 'company_id' => $reservation->company_id, 'branch_id' => $reservation->branch_id, 'vehicle_id' => $reservation->vehicle_id, 'reservation_id' => $reservation->id, 'status' => 'draft']);
             RecordAudit::write($user, 'rental.created', $rental);
             if ($driverId !== null) {
                 RecordAudit::write($user, 'rental.driver_assigned', $rental);
@@ -47,6 +53,7 @@ final class TransitionRental
             $reservation = Reservation::lockForUpdate()->findOrFail($rental->reservation_id);
             Gate::forUser($user)->authorize('update', $rental);
             if ($action === 'handover') {
+                CreditControl::assertCanBook($reservation->customer_id);
                 abort_unless($rental->status === 'draft' && $vehicle->status === 'available' && $reservation->status === 'confirmed', 409, 'Rental cannot be handed over at this time.');
                 if ($data['odometer'] < $vehicle->odometer) {
                     throw ValidationException::withMessages(['odometer' => 'Odometer cannot decrease.']);
@@ -65,6 +72,7 @@ final class TransitionRental
             } else {
                 abort(422, 'Unknown rental transition.');
             }
+            RecordInspection::handle($user, $rental, $action, $data);
             $rental->save();
             $scheduled = $action === 'handover' ? $reservation->starts_at : $reservation->ends_at;
             RecordAudit::write($user, 'rental.'.$action, $rental, metadata: ['scheduled_at' => $scheduled->toISOString(), 'delta_minutes' => (int) $scheduled->diffInMinutes(now(), false)]);

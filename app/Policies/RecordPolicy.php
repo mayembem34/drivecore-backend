@@ -5,8 +5,10 @@ namespace App\Policies;
 use App\Models\Document;
 use App\Models\Rental;
 use App\Models\User;
+use App\Models\WorkOrder;
 use App\Support\CompanyAccess;
 use App\Support\OperationalAccess;
+use App\Support\WorkshopAccess;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -32,6 +34,9 @@ final class RecordPolicy
             if ($record instanceof Document && $record->entity_type === 'rental' && OperationalAccess::rentals($user)->where('driver_user_id', $user->id)->whereKey($record->entity_id)->exists()) {
                 return true;
             }
+        }
+        if ($record instanceof WorkOrder && ! $user->can('work_orders.'.$action)) {
+            return $user->is_active && $user->can('work_orders.'.$action.'_assigned') && WorkshopAccess::query($user, $action)->whereKey($record->id)->exists();
         }
         $domain = Str::plural(Str::snake(class_basename($record)));
 

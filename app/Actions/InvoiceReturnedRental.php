@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Quotation;
 use App\Models\Rental;
 use App\Models\User;
+use App\Support\RatePricing;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -19,8 +20,15 @@ final class InvoiceReturnedRental
         $link = DB::table('quotation_vehicles')->where('reservation_id', $reservation->id)->first();
         $quote = $link ? Quotation::findOrFail($link->quotation_id) : null;
         $rate = $link ? (int) $link->daily_rate_minor : (int) $vehicle->daily_rate_minor;
+        $rate = $rental->amended_daily_rate_minor ?? $rate;
         $days = max(1, (int) ceil($reservation->starts_at->diffInSeconds($reservation->ends_at) / 86400));
         $lines = [['description' => 'Rental charge', 'quantity' => $days, 'unit_price_minor' => $rate]];
+        if (! $quote && $rental->rate_card_snapshot && $rental->amended_daily_rate_minor === null) {
+            $lines = [['description' => 'Rental charge (agreed rate card)', 'quantity' => 1, 'unit_price_minor' => RatePricing::total($rental->rate_card_snapshot, $days)]];
+        }
+        if ($quote?->rate_card_id && $rental->amended_daily_rate_minor === null) {
+            $lines = [['description' => 'Rental charge (agreed rate card)', 'quantity' => 1, 'unit_price_minor' => (int) $link->line_subtotal_minor]];
+        }
         if (($data['extra_charge_minor'] ?? 0) > 0) {
             $lines[] = ['description' => $data['extra_charge_description'], 'quantity' => 1, 'unit_price_minor' => $data['extra_charge_minor']];
         }

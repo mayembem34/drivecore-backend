@@ -2,8 +2,12 @@
 
 namespace App\Http\Resources;
 
+use App\Actions\RecordInspection;
+use App\Models\Customer;
+use App\Models\FixedAsset;
 use App\Models\Invoice;
 use App\Models\JournalEntry;
+use App\Models\MaintenanceSchedule;
 use App\Models\Part;
 use App\Models\PurchaseOrder;
 use App\Models\Quotation;
@@ -12,6 +16,7 @@ use App\Models\Reservation;
 use App\Models\StockMovement;
 use App\Models\Vehicle;
 use App\Models\WorkOrder;
+use App\Support\RollupQuery;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,12 +25,34 @@ class RecordResource extends JsonResource
     public function toArray(Request $request): array
     {
         $data = $this->resource->only(array_diff(array_merge(['id', 'created_at', 'updated_at'], $this->resource->getFillable()), ['disk', 'path']));
+        if ($this->resource instanceof Customer && array_key_exists('rental_count', $this->resource->getAttributes()) && ($request->boolean('include_stats') || $request->is('api/v1/stats/*'))) {
+            $data['stats'] = RollupQuery::customerStats($this->resource, $request->user()->can('invoices.view'));
+        }
+        if ($this->resource instanceof Vehicle && array_key_exists('rental_count', $this->resource->getAttributes()) && ($request->boolean('include_stats') || $request->is('api/v1/stats/*'))) {
+            $data['stats'] = RollupQuery::vehicleStats($this->resource, $request->user()->can('invoices.view'));
+        }
         if ($this->resource instanceof Vehicle) {
             $data['odometer_unit'] = 'km';
+            if (! $request->user()->can('invoices.view')) {
+                foreach (Vehicle::FINANCIAL_FIELDS as $field) {
+                    unset($data[$field]);
+                }
+            } else {
+                $asset = $this->resource->fixedAsset;
+                if ($asset) {
+                    $data['current_book_value_minor'] = $asset->netBookValue();
+                }
+            }
         }
 
         if ($this->resource instanceof Reservation && $this->resource->relationLoaded('customer')) {
             $data += ['customer_name' => $this->customer?->name, 'vehicle_registration' => $this->vehicle?->registration, 'vehicle_label' => trim(($this->vehicle?->make ?? '').' '.($this->vehicle?->model ?? '')), 'has_rental' => $this->rental !== null, 'rental_id' => $this->rental?->id];
+        }
+        if ($this->resource instanceof MaintenanceSchedule) {
+            $data['due_status'] = $this->resource->getAttribute('due_status');
+        }
+        if ($this->resource instanceof Rental) {
+            $data['inspection_diff'] = RecordInspection::difference($this->resource);
         }
         if ($this->resource instanceof Rental && $this->resource->relationLoaded('reservation')) {
             $data += ['odometer_unit' => 'km', 'customer_id' => $this->reservation?->customer_id, 'customer_name' => $this->reservation?->customer?->name, 'vehicle_registration' => $this->vehicle?->registration, 'vehicle_label' => trim(($this->vehicle?->make ?? '').' '.($this->vehicle?->model ?? '')), 'invoice_id' => $this->whenLoaded('invoice', fn () => $this->invoice?->id), 'driver_name' => $this->driver?->name, 'starts_at' => $this->reservation?->starts_at?->toISOString(), 'ends_at' => $this->reservation?->ends_at?->toISOString()];
@@ -35,6 +62,9 @@ class RecordResource extends JsonResource
             $data += ['customer_name' => $this->customer?->name, 'discount_decided_by_name' => $this->decider?->name, 'vehicles' => $this->vehicles->map(fn ($v) => ['vehicle_id' => $v->id, 'registration' => $v->registration, 'make' => $v->make, 'model' => $v->model, 'daily_rate_minor' => (int) $v->pivot->daily_rate_minor, 'line_subtotal_minor' => (int) $v->pivot->line_subtotal_minor, 'reservation_id' => $v->pivot->reservation_id === null ? null : (int) $v->pivot->reservation_id])->all(), 'reservation_ids' => $this->vehicles->pluck('pivot.reservation_id')->filter()->map(fn ($id) => (int) $id)->values()->all()];
         }
 
+        if ($this->resource instanceof FixedAsset) {
+            $data['net_book_value_minor'] = $this->resource->netBookValue();
+        }
         if ($this->resource instanceof Invoice) {
             $data += $this->resource->balances() + ['customer_name' => $this->customer?->name ?? $this->custom_customer_name, 'lines' => $this->lines->toArray(), 'payments' => $this->payments->toArray(), 'refunds' => $this->refunds->toArray()];
         }
@@ -54,6 +84,12 @@ class RecordResource extends JsonResource
         }
         if ($this->resource instanceof StockMovement && $this->resource->relationLoaded('part')) {
             $data['part_name'] = $this->part?->name;
+        }
+
+        if ($this->resource instanceof WorkOrder && $request->user()->hasRole('mechanic-technician') && ! $request->user()->can('invoices.view')) {
+            foreach (['labour_cost_minor', 'parts_cost_minor', 'total_cost_minor', 'estimate_minor'] as $field) {
+                unset($data[$field]);
+            } $data['movements'] = collect($data['movements'] ?? [])->map(fn (array $row) => collect($row)->except(['unit_cost_minor'])->all())->all();
         }
 
         return $data;

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Quotation extends Model
 {
-    protected $fillable = ['company_id', 'branch_id', 'customer_id', 'created_by', 'starts_at', 'ends_at', 'rental_days', 'status', 'discount_pct', 'discount_status', 'discount_decided_by', 'discount_decided_at', 'discount_decision_notes', 'subtotal_minor', 'discount_minor', 'vat_rate_pct', 'vat_minor', 'total_minor', 'notes', 'converted_at'];
+    protected $fillable = ['customer_accepted_at', 'customer_acceptance_ref', 'rate_card_id', 'company_id', 'branch_id', 'customer_id', 'created_by', 'starts_at', 'ends_at', 'rental_days', 'status', 'discount_pct', 'discount_status', 'discount_decided_by', 'discount_decided_at', 'discount_decision_notes', 'subtotal_minor', 'discount_minor', 'vat_rate_pct', 'vat_minor', 'total_minor', 'notes', 'converted_at'];
 
     protected function casts(): array
     {

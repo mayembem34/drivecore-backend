@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Part extends Model
 {
-    protected $fillable = ['company_id', 'branch_id', 'sku', 'name', 'unit_cost_minor', 'min_stock'];
+    protected $fillable = ['location', 'company_id', 'branch_id', 'sku', 'name', 'unit_cost_minor', 'min_stock'];
 
     protected function casts(): array
     {

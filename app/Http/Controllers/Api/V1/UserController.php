@@ -10,6 +10,7 @@ use App\Models\Company;
 use App\Models\User;
 use App\Support\CompanyAccess;
 use App\Support\DirectoryQuery;
+use App\Support\RoleCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
-    private const ROLES = ['company-admin', 'operations', 'viewer', 'driver'];
+    private const ROLES = ['ceo', 'general-manager', 'business-accounts-manager', 'operations-manager', 'maintenance-manager', 'finance-manager', 'credit-control-manager', 'hr-admin-manager', 'mechanic-technician', 'system-administrator', 'company-admin', 'operations', 'finance', 'viewer', 'driver'];
 
     private function workspace(Request $request): Company
     {
@@ -82,6 +83,7 @@ class UserController extends Controller
         return DB::transaction(function () use ($request, $user, $company, $data): ManagedUserResource {
             $record = User::whereHas('companies', fn (Builder $query) => $query->where('companies.id', $company->id))->lockForUpdate()->findOrFail($user);
             abort_if(! $request->user()->is_platform_admin && $record->is_platform_admin, 404);
+            RoleCatalog::canAssign($request, $data['role'] ?? null, $record);
             abort_if($record->id === $request->user()->id && $data !== [], 409, 'Use another administrator to change your own access.');
             abort_if(! $request->user()->is_platform_admin && (isset($data['role']) || array_key_exists('is_active', $data)) && $record->companies()->count() !== 1, 409, 'A platform administrator must change global access for a multi-company user.');
             if (isset($data['role'])) {
@@ -105,7 +107,8 @@ class UserController extends Controller
 
     public function store(Request $request): UserResource
     {
-        $data = $request->validate(['company_id' => ['required', 'integer'], 'branch_id' => ['nullable', 'integer'], 'name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email', 'max:255', 'unique:users,email', 'lowercase'], 'password' => ['required', 'confirmed', Password::min(12)->letters()->numbers()], 'role' => ['required', Rule::in(['company-admin', 'operations', 'viewer', 'driver'])]]);
+        $data = $request->validate(['company_id' => ['required', 'integer'], 'branch_id' => ['nullable', 'integer'], 'name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email', 'max:255', 'unique:users,email', 'lowercase'], 'password' => ['required', 'confirmed', Password::min(10)->letters()->numbers()], 'role' => ['required', Rule::in(self::ROLES)]]);
+        RoleCatalog::canAssign($request, $data['role']);
         $company = CompanyAccess::company($request->user(), $data['company_id']);
         abort_unless($request->user()->is_platform_admin || $company->pivot->branch_id === null, 403);
         if (isset($data['branch_id'])) {
@@ -114,6 +117,7 @@ class UserController extends Controller
 
         return DB::transaction(function () use ($request, $data, $company): UserResource {
             $user = User::create(collect($data)->only(['name', 'email', 'password'])->all());
+            $user->forceFill(['must_change_password' => true])->save();
             $company->users()->attach($user->id, ['branch_id' => $data['branch_id'] ?? null]);
             $user->assignRole($data['role']);
             RecordAudit::write($request->user(), 'user.created', $company);

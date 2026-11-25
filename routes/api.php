@@ -1,33 +1,145 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AccountController;
+use App\Http\Controllers\Api\V1\ApprovalController;
+use App\Http\Controllers\Api\V1\ApprovalThresholdController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BankingController;
 use App\Http\Controllers\Api\V1\BranchController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\CompanySettingsController;
+use App\Http\Controllers\Api\V1\ComplianceController;
+use App\Http\Controllers\Api\V1\ContractController;
+use App\Http\Controllers\Api\V1\CreditController;
+use App\Http\Controllers\Api\V1\CreditNoteController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\FinanceController;
+use App\Http\Controllers\Api\V1\FixedAssetController;
+use App\Http\Controllers\Api\V1\FleetControlController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\IncidentController;
+use App\Http\Controllers\Api\V1\InsightController;
 use App\Http\Controllers\Api\V1\InventoryController;
+use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\InvoiceController;
+use App\Http\Controllers\Api\V1\LeadController;
+use App\Http\Controllers\Api\V1\MessageController;
+use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\PayablesController;
 use App\Http\Controllers\Api\V1\PurchaseOrderController;
 use App\Http\Controllers\Api\V1\QuotationController;
 use App\Http\Controllers\Api\V1\ReadinessController;
 use App\Http\Controllers\Api\V1\RecordPdfController;
 use App\Http\Controllers\Api\V1\RentalController;
+use App\Http\Controllers\Api\V1\RequisitionController;
 use App\Http\Controllers\Api\V1\ReservationController;
+use App\Http\Controllers\Api\V1\SavedFilterController;
+use App\Http\Controllers\Api\V1\StatementController;
+use App\Http\Controllers\Api\V1\StatsController;
+use App\Http\Controllers\Api\V1\TwoFactorController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\VehicleController;
+use App\Http\Controllers\Api\V1\VehicleHistoryController;
 use App\Http\Controllers\Api\V1\VehicleSummaryController;
 use App\Http\Controllers\Api\V1\WorkOrderController;
 use App\Http\Middleware\EnsureActiveAccount;
+use App\Http\Middleware\EnsurePasswordRotated;
+use App\Http\Middleware\EnsureTwoFactorEnrolled;
 use App\Http\Middleware\RequireSecureAuthentication;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('health', HealthController::class)->name('health');
     Route::post('auth/tokens', [AuthController::class, 'token'])->middleware(['throttle:login', RequireSecureAuthentication::class])->name('auth.tokens');
-    Route::middleware(['auth:sanctum', EnsureActiveAccount::class, 'throttle:api'])->group(function (): void {
+    Route::middleware(['auth:sanctum', EnsureActiveAccount::class, EnsureTwoFactorEnrolled::class, EnsurePasswordRotated::class, 'throttle:api'])->group(function (): void {
+        Route::patch('auth/profile', [AccountController::class, 'profile']);
+        Route::post('auth/change-password', [AccountController::class, 'changePassword']);
+        Route::get('invitations', [InvitationController::class, 'index'])->middleware('can:users.administer');
+        Route::post('invitations', [InvitationController::class, 'store'])->middleware('can:users.administer');
+        Route::post('invitations/{id}/{action}', [InvitationController::class, 'transition'])->whereIn('action', ['resend', 'revoke'])->middleware('can:users.administer');
+        Route::get('stats/customers', [StatsController::class, 'customers'])->middleware('can:customers.view');
+        Route::get('stats/vehicles', [StatsController::class, 'vehicles'])->middleware('can:vehicles.view');
+        Route::get('stats/branches', [StatsController::class, 'branches'])->middleware('can:reports.view');
+        Route::get('customers/{id}/summary', [StatsController::class, 'customerSummary'])->middleware('can:customers.view');
+        Route::get('saved-filters', [SavedFilterController::class, 'index']);
+        Route::post('saved-filters', [SavedFilterController::class, 'store']);
+        Route::delete('saved-filters/{id}', [SavedFilterController::class, 'destroy']);
+        Route::get('messages', [MessageController::class, 'index'])->middleware('can:messages.view');
+        Route::post('messages', [MessageController::class, 'store'])->middleware('can:messages.send');
+        Route::post('messages/{id}/read', [MessageController::class, 'read'])->middleware('can:messages.view');
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
+        Route::post('notifications/{id}/read', [NotificationController::class, 'read']);
+        Route::get('dashboard/summary', [InsightController::class, 'dashboard']);
+        Route::get('reports/financial', [InsightController::class, 'financial'])->middleware(['can:reports.view', 'can:invoices.view']);
+        Route::get('reports/fleet', [InsightController::class, 'fleet'])->middleware(['can:reports.view', 'can:vehicles.view']);
+        Route::get('audit-events', [InsightController::class, 'audit'])->middleware('can:audit.view');
+        foreach (['rate-cards', 'maintenance-schedules', 'vehicle-components', 'fuel-transactions', 'vehicle-inspections'] as $domain) {
+            Route::get($domain, [FleetControlController::class, 'index'])->defaults('domain', $domain);
+        }
+        Route::post('{domain}', [FleetControlController::class, 'save'])->whereIn('domain', ['rate-cards', 'maintenance-schedules', 'vehicle-components']);
+        Route::patch('{domain}/{id}', [FleetControlController::class, 'save'])->whereIn('domain', ['rate-cards', 'maintenance-schedules', 'vehicle-components']);
+        Route::post('fuel-transactions', [FleetControlController::class, 'fuel']);
+        Route::patch('customers/{id}/credit', [CreditController::class, 'update'])->middleware('can:credit.manage');
+        Route::get('customers/{id}/statement', [CreditController::class, 'statement'])->middleware('can:invoices.view');
+        Route::get('collection-notes', [CreditController::class, 'notes'])->middleware('can:credit.view');
+        Route::post('collection-notes', [CreditController::class, 'saveNote'])->middleware('can:credit.manage');
+        Route::patch('collection-notes/{id}', [CreditController::class, 'saveNote'])->middleware('can:credit.manage');
+        Route::get('approvals', [ApprovalController::class, 'index'])->middleware('can:approvals.view');
+        Route::post('approvals', [ApprovalController::class, 'store'])->middleware('can:approvals.request');
+        Route::post('approvals/{id}/{action}', [ApprovalController::class, 'decide'])->whereIn('action', ['approve', 'reject'])->middleware('can:approvals.decide');
+        Route::get('compliance/expiries', [ComplianceController::class, 'index'])->middleware('can:documents.view');
+
+        Route::get('ap/invoices/ageing', [PayablesController::class, 'ageing'])->middleware('can:ap.view');
+        Route::get('ap/invoices', [PayablesController::class, 'index'])->middleware('can:ap.view');
+        Route::post('ap/invoices', [PayablesController::class, 'store'])->middleware('can:ap.manage');
+        Route::post('ap/invoices/{id}/payments', [PayablesController::class, 'pay'])->middleware('can:ap.manage');
+        Route::get('suppliers/{id}/statement', [PayablesController::class, 'statement'])->middleware('can:ap.view');
+        Route::get('credit-notes', [CreditNoteController::class, 'index'])->middleware('can:invoices.view');
+        Route::post('invoices/{id}/credit-notes', [CreditNoteController::class, 'store']);
+        Route::post('credit-notes/{id}/post', [CreditNoteController::class, 'publish'])->middleware('can:invoices.manage');
+        Route::get('bank-accounts', [BankingController::class, 'accounts'])->middleware('can:banking.view');
+        Route::post('bank-accounts', [BankingController::class, 'storeAccount'])->middleware('can:banking.manage');
+        Route::get('bank-transactions', [BankingController::class, 'transactions'])->middleware('can:banking.view');
+        foreach (['transactions', 'import'] as $action) {
+            Route::post('bank-accounts/{id}/'.$action, [BankingController::class, 'import'])->middleware('can:banking.manage');
+        }
+        Route::post('bank-accounts/{id}/auto-match', [BankingController::class, 'autoMatch'])->middleware('can:banking.manage');
+        Route::post('bank-accounts/{id}/reconcile', [BankingController::class, 'close'])->middleware('can:banking.manage');
+        Route::get('bank-transactions/{id}/suggestions', [BankingController::class, 'suggestions'])->middleware('can:banking.view');
+        foreach (['match', 'unmatch', 'fee'] as $action) {
+            Route::post('bank-transactions/{id}/'.$action, [BankingController::class, $action])->middleware('can:banking.manage');
+        }
+        Route::get('fixed-assets', [FixedAssetController::class, 'index'])->middleware('can:assets.view');
+        Route::post('fixed-assets', [FixedAssetController::class, 'store'])->middleware('can:assets.manage');
+        Route::post('fixed-assets/depreciate', [FixedAssetController::class, 'depreciate'])->middleware('can:assets.manage');
+        Route::post('fixed-assets/{id}/request-disposal', [FixedAssetController::class, 'requestDisposal'])->middleware('can:assets.manage');
+        Route::post('fixed-assets/{id}/dispose', [FixedAssetController::class, 'dispose'])->middleware('can:assets.manage');
+        Route::get('reports/statements/{statement}', [StatementController::class, 'show'])->whereIn('statement', ['pnl', 'balance-sheet', 'cash-flow', 'vat-return'])->middleware('can:statements.view');
+        Route::get('leads', [LeadController::class, 'index'])->middleware('can:leads.view');
+        Route::post('leads', [LeadController::class, 'save'])->middleware('can:leads.manage');
+        Route::patch('leads/{id}', [LeadController::class, 'save'])->middleware('can:leads.manage');
+        Route::post('leads/{id}/convert', [LeadController::class, 'convert'])->middleware(['can:leads.manage', 'can:quotations.manage']);
+        foreach (['setup', 'confirm', 'disable'] as $action) {
+            Route::post('auth/two-factor/'.$action, [TwoFactorController::class, $action])->middleware('throttle:login');
+        }
+        Route::post('users/{id}/reset-two-factor', [TwoFactorController::class, 'reset']);
+
+        Route::get('vehicles/{id}/history', VehicleHistoryController::class)->middleware('can:vehicles.view');
+        Route::get('incidents', [IncidentController::class, 'index'])->middleware('can:vehicles.view');
+        Route::post('incidents', [IncidentController::class, 'save'])->middleware('can:vehicles.manage');
+        Route::patch('incidents/{id}', [IncidentController::class, 'save'])->middleware('can:vehicles.manage');
+        Route::post('incidents/{id}/create-work-order', [IncidentController::class, 'createWorkOrder'])->middleware('can:work_orders.manage');
+        Route::get('purchase-requisitions', [RequisitionController::class, 'index'])->middleware('can:purchase_orders.view');
+        Route::post('purchase-requisitions', [RequisitionController::class, 'store'])->middleware('can:purchase_orders.manage');
+        Route::post('purchase-requisitions/{id}/{action}', [RequisitionController::class, 'decide'])->whereIn('action', ['approve', 'reject'])->middleware('can:purchase_orders.approve');
+        Route::post('purchase-requisitions/{id}/convert-to-po', [RequisitionController::class, 'convert'])->middleware('can:purchase_orders.manage');
+        Route::get('companies/{id}/approval-thresholds', [ApprovalThresholdController::class, 'show'])->middleware('can:companies.view');
+        Route::patch('companies/{id}/approval-thresholds', [ApprovalThresholdController::class, 'update'])->middleware('can:settings.manage');
+        Route::post('quotations/{id}/accept', [ContractController::class, 'accept'])->middleware('can:quotations.manage');
+        Route::post('rentals/{id}/amend', [ContractController::class, 'amend'])->middleware('can:rentals.manage');
+        Route::post('rentals/{id}/deposit', [ContractController::class, 'deposit'])->middleware('can:payments.manage');
         Route::get('auth/me', [AuthController::class, 'show'])->name('auth.me');
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::get('readiness', ReadinessController::class)->middleware('can:companies.manage')->name('readiness');
@@ -65,9 +177,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('expenses', [FinanceController::class, 'storeExpense'])->middleware('can:expenses.manage');
         Route::get('gl/accounts', [FinanceController::class, 'accounts'])->middleware('can:gl.view');
         Route::get('gl/journal-entries', [FinanceController::class, 'journals'])->middleware('can:gl.view');
-        Route::apiResource('work-orders', WorkOrderController::class)->only(['index', 'show'])->middleware('can:work_orders.view');
-        Route::post('work-orders', [WorkOrderController::class, 'store'])->middleware('can:work_orders.manage');
-        Route::post('work-orders/{work_order}/{action}', [WorkOrderController::class, 'transition'])->whereIn('action', ['start', 'consume-parts', 'complete', 'cancel'])->middleware('can:work_orders.manage');
+        Route::apiResource('work-orders', WorkOrderController::class)->only(['index', 'show'])->middleware('can:work_orders.access');
+        Route::patch('work-orders/{work_order}', [WorkOrderController::class, 'update'])->middleware('can:work_orders.change');
+        Route::post('work-orders', [WorkOrderController::class, 'store'])->middleware('can:work_orders.change');
+        Route::post('work-orders/{work_order}/{action}', [WorkOrderController::class, 'transition'])->whereIn('action', ['start', 'consume-parts', 'complete', 'cancel'])->middleware('can:work_orders.change');
         Route::get('parts', [InventoryController::class, 'parts'])->middleware('can:parts.view');
         Route::post('parts', [InventoryController::class, 'savePart'])->middleware('can:parts.manage');
         Route::patch('parts/{part}', [InventoryController::class, 'savePart'])->middleware('can:parts.manage');
@@ -83,7 +196,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('vehicles/{vehicle}/summary', VehicleSummaryController::class)->middleware('can:vehicles.view');
         Route::get('users', [UserController::class, 'index'])->middleware('can:users.view')->name('users.index');
         Route::get('roles', [UserController::class, 'roles'])->middleware('can:users.view')->name('roles.index');
-        Route::patch('users/{user}', [UserController::class, 'update'])->middleware('can:users.manage')->name('users.update');
-        Route::post('users', [UserController::class, 'store'])->middleware('can:users.manage')->name('users.store');
+        Route::patch('users/{user}', [UserController::class, 'update'])->middleware('can:users.administer')->name('users.update');
+        Route::post('users', [UserController::class, 'store'])->middleware('can:users.administer')->name('users.store');
     });
 });

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Document extends Model
 {
-    protected $fillable = ['company_id', 'branch_id', 'uploaded_by', 'disk', 'path', 'original_name', 'mime_type', 'size', 'entity_type', 'entity_id', 'expires_at'];
+    protected $fillable = ['category', 'company_id', 'branch_id', 'uploaded_by', 'disk', 'path', 'original_name', 'mime_type', 'size', 'entity_type', 'entity_id', 'expires_at'];
 
     protected function casts(): array
     {

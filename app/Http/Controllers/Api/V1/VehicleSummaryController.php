@@ -27,8 +27,8 @@ class VehicleSummaryController extends Controller
         }
         if ($request->user()->can('invoices.view')) {
             $revenue = 0;
-            foreach (Invoice::where('company_id', $record->company_id)->where('status', 'issued')->whereIn('rental_id', Rental::where('vehicle_id', $record->id)->select('id'))->with('refunds')->lazyById(100) as $invoice) {
-                $revenue += $invoice->total_minor - (int) $invoice->refunds->sum('amount_minor');
+            foreach (Invoice::where('company_id', $record->company_id)->where('status', 'issued')->whereIn('rental_id', Rental::where('vehicle_id', $record->id)->select('id'))->with(['refunds', 'creditNotes'])->lazyById(100) as $invoice) {
+                $revenue += $invoice->total_minor - (int) $invoice->refunds->sum('amount_minor') - (int) $invoice->creditNotes->where('status', 'posted')->sum('total_minor');
             }$maintenance = (int) (clone $orders)->where('status', 'completed')->selectRaw('COALESCE(SUM(labour_cost_minor + parts_cost_minor),0) AS aggregate')->value('aggregate');
             $other = (int) Expense::where('vehicle_id', $record->id)->whereNotIn('id', WorkOrder::whereNotNull('expense_id')->select('expense_id'))->sum('amount_minor');
             $data['cumulative_revenue_minor'] = $revenue;

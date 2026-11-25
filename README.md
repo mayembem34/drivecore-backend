@@ -21,16 +21,41 @@ Only the interactive bootstrap command can create a platform administrator.
 - Private PDF/JPEG/PNG uploads (10 MiB) and authorization-protected downloads.
 - Append-only application audit events for writes and workflow transitions.
 
-Roles (`company-admin`, `operations`, `viewer`, `driver`) are a proposed engineering
-baseline pending the client's permission matrix. Driver has no operational permissions
-until driver-specific assignment endpoints are implemented. Company and branch access
-are checked independently of role. There is no public registration or demo account.
+The role catalog includes the ten exact SRS roles (CEO, General Manager, Business
+Accounts Manager, Operations Manager, Maintenance Manager, Finance Manager, Credit
+Control Manager, HR/Admin Manager, Mechanic/Technician and System Administrator),
+plus `driver` and the `company-admin`, `operations`, `finance`, `viewer` compatibility
+aliases. Company and branch scope is independent of role. Drivers have assigned
+rental/inspection/fuel access and driver/dispatch chat; mechanics have scoped workshop
+access; HR cannot administer privileged accounts. There is no public registration.
 
-This is **not the completed ERP**. Quotations/rate cards, credit approval, financial
-calculations, accounting, invoicing/payments, rental extensions, structured inspections,
-driver assignments/offline sync and external integrations need subsequent implementation
-and approved business rules. A returned rental is an operational return, not financial closure.
-There is no destructive delete API.
+The defined backend requirements through M16.5 include quotations/private PDFs,
+SQL-sorted customer/vehicle statistics, messaging and per-user notifications,
+invitation-only onboarding and password recovery, TOTP for web/mobile sign-in,
+rate cards and digital inspections, preventive maintenance/fuel/components,
+credit control and independent approvals, AR/AP, credit notes, bank reconciliation,
+fixed assets/depreciation and financial statements, CRM leads, incident management,
+contract amendments/deposits and purchase requisitions. See OpenAPI 0.7.0 for request
+and response contracts, permission gates and canonical units.
+
+Web and mobile logins for enrolled users return a five-minute `challenge_token`;
+complete `POST /api/v1/auth/two-factor/challenge` before using a session or bearer token.
+Direct-created users must rotate their initial password. Company policy may require
+privileged users to enroll in TOTP before accessing business routes. Invitation tokens
+are stored hashed and queued invitation notifications are encrypted. Set `FRONTEND_URL`
+to the actual web frontend for invitation/reset links, configure `MAIL_*`, and keep the
+queue worker running. Global role changes for existing multi-company accounts require
+platform administration; accepting an invitation preserves compatible global roles.
+
+Approvals reject self-decisions. Threshold-gated mutations require an independently
+approved exact value and consume that decision once. Quotation discounts and purchase
+orders also use the shared approval engine. A returned rental creates a draft invoice;
+it is not financial closure. Financial values use integer minor units; stored distances,
+fuel and weights use km, L and kg, with efficiency in L/100km.
+
+M17 printing/barcode scanning and M18 GPS are undefined placeholders and remain out of
+scope. Offline synchronization and external-provider activation are separate work.
+There is no destructive business-record delete API (personal/shared saved views can be deleted).
 
 ## Tests and CI
 

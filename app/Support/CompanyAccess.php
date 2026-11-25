@@ -4,8 +4,11 @@ namespace App\Support;
 
 use App\Models\Branch;
 use App\Models\Company;
+use App\Models\Message;
+use App\Models\RateCard;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Models\UserNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -23,7 +26,11 @@ final class CompanyAccess
                 $query->orWhere(function (Builder $part) use ($company): void {
                     $part->where('company_id', $company->id);
                     if ($company->pivot->branch_id !== null && ! ($part->getModel() instanceof Supplier)) {
-                        $part->where($part->getModel() instanceof Branch ? 'id' : 'branch_id', $company->pivot->branch_id);
+                        if ($part->getModel() instanceof RateCard || $part->getModel() instanceof Message || $part->getModel() instanceof UserNotification) {
+                            $part->where(fn (Builder $branch) => $branch->whereNull('branch_id')->orWhere('branch_id', $company->pivot->branch_id));
+                        } else {
+                            $part->where($part->getModel() instanceof Branch ? 'id' : 'branch_id', $company->pivot->branch_id);
+                        }
                     }
                 });
             }

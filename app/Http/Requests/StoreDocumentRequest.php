@@ -14,7 +14,7 @@ class StoreDocumentRequest extends FormRequest
 
     public function rules(): array
     {
-        $rules = ['company_id' => ['required', 'integer'], 'branch_id' => ['required', 'integer'], 'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'], 'entity_type' => ['nullable', 'required_with:entity_id', Rule::in(['vehicle', 'customer', 'reservation', 'rental', 'quotation', 'invoice', 'work_order', 'purchase_order'])], 'entity_id' => ['nullable', 'required_with:entity_type', 'integer', 'min:1'], 'expires_at' => ['sometimes', 'nullable', 'date']];
+        $rules = ['category' => ['nullable', Rule::in(['insurance', 'roadworthy', 'vehicle_licence', 'driver_licence', 'contract', 'kyc', 'other'])], 'company_id' => ['required', 'integer'], 'branch_id' => ['required', 'integer'], 'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'], 'entity_type' => ['nullable', 'required_with:entity_id', Rule::in(['vehicle', 'customer', 'reservation', 'rental', 'quotation', 'invoice', 'work_order', 'purchase_order'])], 'entity_id' => ['nullable', 'required_with:entity_type', 'integer', 'min:1'], 'expires_at' => ['sometimes', 'nullable', 'date']];
 
         return $rules;
     }
