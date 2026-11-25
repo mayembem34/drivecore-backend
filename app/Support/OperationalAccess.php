@@ -5,11 +5,13 @@ namespace App\Support;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Invoice;
+use App\Models\PurchaseOrder;
 use App\Models\Quotation;
 use App\Models\Rental;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\WorkOrder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -49,7 +51,7 @@ final class OperationalAccess
         }
         $model = match ($data['entity_type']) {
             'vehicle' => Vehicle::class, 'customer' => Customer::class,
-            'reservation' => Reservation::class, 'rental' => Rental::class, 'quotation' => Quotation::class, 'invoice' => Invoice::class,
+            'reservation' => Reservation::class, 'rental' => Rental::class, 'quotation' => Quotation::class, 'invoice' => Invoice::class, 'work_order' => WorkOrder::class, 'purchase_order' => PurchaseOrder::class,
             default => throw ValidationException::withMessages(['entity_type' => 'This entity type is not available yet.']),
         };
         abort_if($driverOnly && $model !== Rental::class, 403);

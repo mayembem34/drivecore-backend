@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Branch;
 use App\Models\Company;
+use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -21,7 +22,7 @@ final class CompanyAccess
             foreach ($user->companies()->get() as $company) {
                 $query->orWhere(function (Builder $part) use ($company): void {
                     $part->where('company_id', $company->id);
-                    if ($company->pivot->branch_id !== null) {
+                    if ($company->pivot->branch_id !== null && ! ($part->getModel() instanceof Supplier)) {
                         $part->where($part->getModel() instanceof Branch ? 'id' : 'branch_id', $company->pivot->branch_id);
                     }
                 });
