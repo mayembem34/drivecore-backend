@@ -34,6 +34,22 @@ class RolePermissionSeeder extends Seeder
             Role::findOrCreate($role, 'web')->givePermissionTo($financePermissions);
         }
         Role::findOrCreate('viewer', 'web')->givePermissionTo(['invoices.view', 'expenses.view']);
+        foreach (['work_orders', 'parts', 'suppliers', 'purchase_orders'] as $domain) {
+            foreach (['view', 'manage'] as $action) {
+                Permission::findOrCreate($domain.'.'.$action, 'web');
+                Role::findOrCreate('company-admin', 'web')->givePermissionTo($domain.'.'.$action);
+                Role::findOrCreate('operations', 'web')->givePermissionTo($domain.'.'.$action);
+                if ($action === 'view') {
+                    foreach (['finance', 'viewer'] as $role) {
+                        Role::findOrCreate($role, 'web')->givePermissionTo($domain.'.view');
+                    }
+                }
+            }
+        }
+        Permission::findOrCreate('purchase_orders.approve', 'web');
+        foreach (['company-admin', 'finance'] as $role) {
+            Role::findOrCreate($role, 'web')->givePermissionTo('purchase_orders.approve');
+        }
         Role::findOrCreate('driver', 'web')->syncPermissions(['companies.view', 'branches.view']);
     }
 }

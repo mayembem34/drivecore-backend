@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "DriveCore Backend API",
-    "version": "0.5.0",
-    "description": "DriveCore API through M8: operations, quotations, private PDFs, invoices, payments, refunds, expenses, receivables ageing and scoped double-entry ledger. Later milestone modules are not implemented."
+    "version": "0.6.0",
+    "description": "DriveCore API through M9: operations, quotations, finance, maintenance work orders, inventory, procurement and vehicle summaries. Later milestone modules are not implemented."
   },
   "servers": [
     {
@@ -6456,6 +6456,1462 @@
             "description": "Use attachment disposition instead of inline"
           }
         ]
+      }
+    },
+    "/api/v1/work-orders": {
+      "get": {
+        "summary": "List scoped work orders; work_orders.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vehicle_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Open work order; work_orders.manage",
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "branch_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "vehicle_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "title": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "due_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "labour_cost_minor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 10000
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "branch_id",
+                  "vehicle_id",
+                  "title",
+                  "due_at"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-orders/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "summary": "Work order, vehicle label, total_cost_minor, expense_id and movements; work_orders.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        }
+      }
+    },
+    "/api/v1/work-orders/{id}/start": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "start under vehicle/work-order/part locks; work_orders.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        }
+      }
+    },
+    "/api/v1/work-orders/{id}/consume-parts": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "consume-parts under vehicle/work-order/part locks; work_orders.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "part_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000000
+                  }
+                },
+                "required": [
+                  "part_id",
+                  "quantity"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-orders/{id}/complete": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "complete under vehicle/work-order/part locks; work_orders.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "labour_cost_minor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "completion_notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 10000
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/work-orders/{id}/cancel": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "cancel under vehicle/work-order/part locks; work_orders.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        }
+      }
+    },
+    "/api/v1/parts": {
+      "get": {
+        "summary": "List parts with live on_hand and is_low_stock; parts.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "low_stock_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create part; parts.manage",
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "branch_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "sku": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "unit_cost_minor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "min_stock": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "branch_id",
+                  "sku",
+                  "name"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/parts/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "patch": {
+        "summary": "Edit part metadata; parts.manage (workspace immutable)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sku": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "unit_cost_minor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "min_stock": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/parts/{id}/adjust": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "Adjust stock atomically; reject negative result; post balanced adjustment journal; parts.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": -1000000,
+                    "maximum": 1000000,
+                    "description": "Nonzero signed quantity"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 255
+                  }
+                },
+                "required": [
+                  "quantity",
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stock-movements": {
+      "get": {
+        "summary": "Immutable scoped stock ledger; parts.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "part_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "work_order_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "purchase_order_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/suppliers": {
+      "get": {
+        "summary": "Company-scoped supplier directory; suppliers.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create supplier; suppliers.manage",
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "email": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "email"
+                  },
+                  "phone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 50
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "name"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/suppliers/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "patch": {
+        "summary": "Edit supplier; suppliers.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "email": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "email"
+                  },
+                  "phone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 50
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders": {
+      "get": {
+        "summary": "List scoped POs with lines and supplier_name; purchase_orders.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "supplier_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create multi-line draft; purchase_orders.manage",
+        "responses": {
+          "201": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "company_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "branch_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "supplier_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 10000
+                  },
+                  "lines": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "part_id",
+                        "quantity",
+                        "unit_cost_minor"
+                      ],
+                      "properties": {
+                        "part_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000000
+                        },
+                        "unit_cost_minor": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000000
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "company_id",
+                  "branch_id",
+                  "supplier_id",
+                  "lines"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "summary": "Read PO detail; purchase_orders.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit draft only, replacing lines; purchase_orders.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "supplier_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 10000
+                  },
+                  "lines": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "part_id",
+                        "quantity",
+                        "unit_cost_minor"
+                      ],
+                      "properties": {
+                        "part_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000000
+                        },
+                        "unit_cost_minor": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000000
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "lines"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders/{id}/submit": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "submit PO; purchase_orders.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders/{id}/approve": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "approve PO; purchase_orders.approve",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders/{id}/receive": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "receive PO; purchase_orders.manage. Stock and journal posted once atomically.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders/{id}/cancel": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "summary": "cancel PO; purchase_orders.manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles/{id}/summary": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "summary": "Vehicle work-order/downtime summary; revenue minus refunds, maintenance, other expenses and ROI only when invoices.view, otherwise null; vehicles.view",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Outside accessible scope or not found"
+          },
+          "409": {
+            "description": "Invalid state or duplicate transition"
+          },
+          "422": {
+            "description": "Invalid input or insufficient stock"
+          }
+        }
       }
     }
   },

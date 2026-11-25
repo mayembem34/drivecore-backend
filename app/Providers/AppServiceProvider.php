@@ -6,11 +6,15 @@ use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Invoice;
+use App\Models\Part;
+use App\Models\PurchaseOrder;
 use App\Models\Quotation;
 use App\Models\Rental;
 use App\Models\Reservation;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\WorkOrder;
 use App\Policies\RecordPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -25,7 +29,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::before(fn (User $user, string $ability) => $user->is_active && $user->is_platform_admin ? true : null);
-        foreach ([Invoice::class, Quotation::class, Branch::class, Customer::class, Vehicle::class, Reservation::class, Rental::class, Document::class] as $model) {
+        foreach ([WorkOrder::class, Part::class, PurchaseOrder::class, Supplier::class, Invoice::class, Quotation::class, Branch::class, Customer::class, Vehicle::class, Reservation::class, Rental::class, Document::class] as $model) {
             Gate::policy($model, RecordPolicy::class);
         }
         RateLimiter::for('login', fn (Request $request) => [Limit::perMinute(5)->by(mb_strtolower(is_string($request->input('email')) ? $request->input('email') : '').'|'.$request->ip()), Limit::perMinute(30)->by($request->ip())]);
